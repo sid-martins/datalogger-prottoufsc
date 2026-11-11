@@ -53,6 +53,7 @@ datalogger/
     │       ├── driver/gpio.h
     │       └── freertos/ (FreeRTOS.h, task.h, queue.h)
     ├── mocks/                      # Mocks GMock (MockSensor, MockStorage) e FakeRtosQueue
+    ├── test_board_pins.cpp         # Testes unitários validando o mapeamento dos 26 pinos do esquemático
     ├── test_ring_buffer.cpp        # Testes unitários do SampleRingBuffer
     └── test_datalogger_service.cpp # Testes unitários do DataloggerService e filas do FreeRTOS
 ```
@@ -64,11 +65,12 @@ datalogger/
 1. **Ambiente de Compilação e Testes no Windows (Host TDD)**:
    - Toolchain C/C++ (**LLVM-MinGW Clang/G++ 23.1.4 UCRT**), **CMake 4.4.4** e **Ninja 1.13.2** configurados.
    - **Google Test & Google Mock (v1.14.0)** integrado em `tests/external/googletest` (funcionando 100% offline).
-   - 10 testes unitários implementados e passando (`SampleRingBufferTest` e `DataloggerServiceTest`).
-2. **Mapeamento de Portas e IOs do ESP32-S3 (`components/board_config/include/board_pins.h`)**:
-   - Documentação dos pinos seguros, ADC1, ADC2, Strapping Pins e pinos reservados (Flash/PSRAM/USB) do ESP32-S3.
-   - Definições `PIN_*` e `TAG_*` para LEDs, Botão, Power Gate de sensores, I2C, SPI (MicroSD), ADC1 (Bateria e canais analógicos), Entradas Digitais de Pulso, Saídas Digitais/Relés e UART1/RS-485.
-   - Tabela `kBoardPinMap` associando `gpio_num_t`, `tag`, direção e descrição.
+   - 13 testes unitários implementados e passando (`BoardPinsTest`, `SampleRingBufferTest` e `DataloggerServiceTest`).
+2. **Mapeamento Oficial de Portas e IOs do Esquemático (`components/board_config/include/board_pins.h`)**:
+   - Mapeamento completo dos **26 sinais do esquemático** (`Main.SchDoc` / `CPU.SchDoc` - `U3: ESP32-S3-DEVKITC-1-N8R2`).
+   - **10 Canais Analógicos no ADC1 (`GPIO 1` a `GPIO 10`)**: `OilPressure`, `OilTemp`, `FuelPressure`, `Lambda`, `ADC5to3v3_1..4` e `ADC12to3v3_1..2` (condicionados pelos MCP6022 `U5..U9`).
+   - **Periféricos e UI**: RTC `DS3231SN#` via I2C (`GPIO 11/12`), GPS `Neo-8M` via UART (`GPIO 13/47`), CAN/TWAI `SN65HVD230DR` (`GPIO 15/16`), Cartão MicroSD SPI/SDMMC 4-bit (`GPIO 14, 17, 18, 21, 40, 41`), Botões `Free_SW1/SW2` (`GPIO 35/36`) e LEDs `LED_Acquiring/Working` (`GPIO 37/39`).
+   - Tabelas `kAnalogChannels` e `kBoardPinMap` prontas para iteração no firmware.
 3. **Arquitetura Desacoplada para FreeRTOS (`components/hal_interfaces` e `components/datalogger_core`)**:
    - Injeção de dependência via `ISensor`, `IStorage` e `IRtosQueue<T>`.
    - Separação em duas Tasks do FreeRTOS no `main/main.cpp`:

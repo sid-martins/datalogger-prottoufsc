@@ -46,6 +46,7 @@ target_compile_options(datalogger_core_lib PRIVATE
 
 # Executável de testes unitários (Google Test + Google Mock)
 add_executable(datalogger_unit_tests
+    test_board_pins.cpp
     test_ring_buffer.cpp
     test_datalogger_service.cpp
 )

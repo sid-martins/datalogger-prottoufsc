@@ -25,9 +25,11 @@ foreach ($p in ($extraPaths | Select-Object -Unique)) {
     }
 }
 
-Write-Host "==> Configurando build de testes TDD (Google Test) no Host..." -ForegroundColor Cyan
-cmake -S tests -B build_tests -G Ninja
-if ($LASTEXITCODE -ne 0) { throw "Falha na configuracao do CMake." }
+if (-not (Test-Path "build_tests/build.ninja")) {
+    Write-Host "==> Configurando build de testes TDD (Google Test) no Host..." -ForegroundColor Cyan
+    cmake -S tests -B build_tests -G Ninja
+    if ($LASTEXITCODE -ne 0) { throw "Falha na configuracao do CMake." }
+}
 
 Write-Host "==> Compilando testes unitarios..." -ForegroundColor Cyan
 cmake --build build_tests

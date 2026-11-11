@@ -35,15 +35,38 @@ Este arquivo (`GEMINI.md`) funciona como a memória persistente e guia arquitetu
 
 ---
 
-## 3. Mapeamento de Pinos e IOs (`board_pins.h`)
-- Todos os pinos e suas respectivas tags de identificação ficam centralizados em `components/board_config/include/board_pins.h`.
-- Sempre utilize as constantes `PIN_*` (para configurar o `gpio_num_t`) e `TAG_*` (para logs e cabeçalhos de arquivos CSV/JSON).
-- **Restrições de Pinos do ESP32-S3 que devem ser respeitadas:**
-  - **Proibidos (Flash/PSRAM SPI):** `GPIO 26` a `GPIO 32` (e `GPIO 33` a `GPIO 37` em módulos Octal PSRAM).
-  - **USB Nativo (D-/D+ JTAG):** `GPIO 19` e `GPIO 20`.
-  - **UART0 Console:** `GPIO 43` (TX) e `GPIO 44` (RX).
-  - **Strapping Pins (cuidado no boot):** `GPIO 0`, `GPIO 3`, `GPIO 45`, `GPIO 46`.
-  - **ADC:** Priorizar **ADC1** (`GPIO 1` a `GPIO 10`), pois o ADC2 conflita com o rádio Wi-Fi.
+## 3. Mapeamento Oficial de Pinos e IOs (`board_pins.h` - Esquemático `CPU.SchDoc`)
+- Todos os 26 pinos do **ESP32-S3-DEVKITC-1-N8R2 (`U3`)** e suas respectivas tags de identificação ficam centralizados em `components/board_config/include/board_pins.h`:
+  - **ADC1 - Motor (`Measurement_Engine.SchDoc` - `U8`/`U9` MCP6022):**
+    - `GPIO 1` (`ADC1_CH0`): `PIN_ADC_OIL_PRESSURE` (`"OilPressure"`)
+    - `GPIO 2` (`ADC1_CH1`): `PIN_ADC_OIL_TEMP` (`"OilTemp"`)
+    - `GPIO 3` (`ADC1_CH2`): `PIN_ADC_FUEL_PRESSURE` (`"FuelPressure"`)
+    - `GPIO 4` (`ADC1_CH3`): `PIN_ADC_LAMBDA` (`"Lambda"`)
+  - **ADC1 - Sensores 5V -> 3.3V (`Measurement_5to3v3.SchDoc` - `U5`/`U6` MCP6022):**
+    - `GPIO 5` a `GPIO 8` (`ADC1_CH4` a `ADC1_CH7`): `PIN_ADC_5TO3V3_1` a `PIN_ADC_5TO3V3_4` (`"ADC5to3v3_1"` a `"ADC5to3v3_4"`)
+  - **ADC1 - Sensores 12V -> 3.3V (`Measurement_12to3v3.SchDoc` - `U7` MCP6022):**
+    - `GPIO 9` e `GPIO 10` (`ADC1_CH8` e `ADC1_CH9`): `PIN_ADC_12TO3V3_1` e `PIN_ADC_12TO3V3_2` (`"ADC12to3v3_1"` e `"ADC12to3v3_2"`)
+  - **I2C - RTC Externo `DS3231SN#` (`RTC.SchDoc` - `B8`):**
+    - `GPIO 11`: `PIN_I2C_SDA` (`"SDA_I2C_1"`)
+    - `GPIO 12`: `PIN_I2C_SCL` (`"SCL_I2C_1"`)
+  - **UART - GPS `Neo-8M` (`CPU.SchDoc` - `J5`):**
+    - `GPIO 13`: `PIN_GPS_RX` (`"GPS_RX"` - conectado ao TX do GPS)
+    - `GPIO 47`: `PIN_GPS_TX` (`"GPS_TX"` - conectado ao RX do GPS)
+  - **CAN / TWAI - Transceptor `SN65HVD230DR` (`Communication.SchDoc` - `U2`):**
+    - `GPIO 15`: `PIN_CAN_TX` (`"CAN_TX"`)
+    - `GPIO 16`: `PIN_CAN_RX` (`"CAN_RX"`)
+  - **Cartão MicroSD (`CPU.SchDoc` - `J4` - SPI / SDMMC 4-bits):**
+    - `GPIO 14`: `PIN_SD_MISO` / `DAT0` (`"SD_MISO"`)
+    - `GPIO 17`: `PIN_SD_CS` / `DAT3` (`"SD_CS"`)
+    - `GPIO 18`: `PIN_SD_MOSI` / `CMD` (`"SD_MOSI"`)
+    - `GPIO 21`: `PIN_SD_SCK` / `CLK` (`"SD_SCK"`)
+    - `GPIO 40`: `PIN_SD_DAT1` (`"SD_DAT1"`)
+    - `GPIO 41`: `PIN_SD_DAT2` (`"SD_DAT2"`)
+  - **Interface (Botões e LEDs Verdes - `CPU.SchDoc`):**
+    - `GPIO 35`: `PIN_BTN_FREE_SW1` (`"Free_SW1"` - Botão `SW2`, ativo baixo)
+    - `GPIO 36`: `PIN_BTN_FREE_SW2` (`"Free_SW2"` - Botão `SW1`, ativo baixo)
+    - `GPIO 37`: `PIN_LED_ACQUIRING` (`"LED_Acquiring"` - LED `D2`, ativo alto)
+    - `GPIO 39`: `PIN_LED_WORKING` (`"LED_Working"` - LED `D3`, ativo alto)
 
 ---
 
@@ -72,8 +95,8 @@ Este arquivo (`GEMINI.md`) funciona como a memória persistente e guia arquitetu
 - [x] Interfaces HAL (`ISensor`, `IStorage`, `IRtosQueue`) e Mocks (`MockSensor`, `MockStorage`, `FakeRtosQueue`).
 - [x] Componentes iniciais testados via TDD: `SampleRingBuffer` e `DataloggerService`.
 - [x] Configuração de IntelliSense do VS Code (`.vscode/c_cpp_properties.json`, `.clangd`) e headers stub do ESP-IDF (`tests/esp_idf_stubs/`).
-- [x] Arquivo central de mapeamento de portas e tags do ESP32-S3 (`components/board_config/include/board_pins.h`).
-- [ ] Definição final dos sensores e periféricos reais do Datalogger e implementação dos seus respectivos módulos via TDD.
+- [x] Arquivo central de mapeamento de portas e tags do ESP32-S3 (`components/board_config/include/board_pins.h`) atualizado com os 26 sinais reais do esquemático elétrico (`Main.SchDoc` / `CPU.SchDoc`) e validado via TDD (`test_board_pins.cpp`).
+- [ ] Implementação dos módulos de periféricos reais do Datalogger via TDD (ADC 10 canais, RTC DS3231 I2C, CAN/TWAI SN65HVD230, GPS Neo-8M UART, MicroSD e UI de Botões/LEDs).
 
 > **Regra de Manutenção:** Sempre que uma etapa importante for concluída ou um novo componente arquitetural for adicionado ao projeto, atualize a seção **5. Estado Atual do Projeto** deste arquivo `GEMINI.md` e o `README.md`.
 
