@@ -1,0 +1,11 @@
+CompileFlags:
+  Add:
+    - "-std=c++17"
+    - "-Icomponents/hal_interfaces/include"
+    - "-Icomponents/ring_buffer/include"
+    - "-Icomponents/datalogger_core/include"
+    - "-Itests/mocks"
+    - "-Itests/external/googletest/googletest/include"
+    - "-Itests/external/googletest/googlemock/include"
+    - "-Itests/esp_idf_stubs/include"
+

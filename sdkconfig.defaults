@@ -1,0 +1,17 @@
+# Configurações padrão para ESP32-S3 Datalogger
+CONFIG_IDF_TARGET="esp32s3"
+
+# Flash de 8MB (ajuste para 4MB ou 16MB conforme seu DevKit ESP32-S3)
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# FreeRTOS: Tick em 1000 Hz (1 ms de resolução para amostragem precisa)
+CONFIG_FREERTOS_HZ=1000
+
+# Suporte a C++ Exceptions e RTTI (opcional, útil em arquiteturas C++ modernas)
+CONFIG_COMPILER_CXX_EXCEPTIONS=y
+
+# Watchdog e Logs
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+

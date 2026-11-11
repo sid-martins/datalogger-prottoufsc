@@ -1,0 +1,10 @@
+build/
+build_tests/
+tests/external/
+sdkconfig
+sdkconfig.old
+.vscode/
+.cache/
+managed_components/
+dependencies.lock
+*.pyc
