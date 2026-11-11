@@ -1,63 +1,70 @@
 #include <gtest/gtest.h>
+#include "i_can_driver.hpp"
 #include "ring_buffer.hpp"
 
 namespace datalogger::testing {
 
-TEST(SampleRingBufferTest, StartsEmptyWithExpectedCapacity) {
-    SampleRingBuffer<4> buffer;
+TEST(RingBufferTest, StartsEmptyWithExpectedCapacity) {
+    RingBuffer<hal::CanFrame, 4> buffer;
     EXPECT_TRUE(buffer.empty());
     EXPECT_FALSE(buffer.full());
     EXPECT_EQ(buffer.size(), 0u);
     EXPECT_EQ(buffer.capacity(), 4u);
 }
 
-TEST(SampleRingBufferTest, PushAndPopFollowFifoOrder) {
-    SampleRingBuffer<3> buffer;
+TEST(RingBufferTest, PushAndPopCanFramesFollowFifoOrder) {
+    RingBuffer<hal::CanFrame, 3> buffer;
 
-    EXPECT_TRUE(buffer.push({1000, 22.5f, 50.0f, 3800.0f}));
-    EXPECT_TRUE(buffer.push({2000, 23.0f, 51.0f, 3790.0f}));
+    hal::CanFrame frame1{};
+    frame1.id = 0x100;
+    frame1.dlc = 2;
+    frame1.data = {0xAA, 0xBB};
+
+    hal::CanFrame frame2{};
+    frame2.id = 0x200;
+    frame2.dlc = 1;
+    frame2.data = {0xCC};
+
+    EXPECT_TRUE(buffer.push(frame1));
+    EXPECT_TRUE(buffer.push(frame2));
     EXPECT_EQ(buffer.size(), 2u);
 
-    hal::SensorReading out{};
+    hal::CanFrame out{};
     ASSERT_TRUE(buffer.pop(out));
-    EXPECT_EQ(out.timestamp_ms, 1000u);
-    EXPECT_FLOAT_EQ(out.temperature_c, 22.5f);
+    EXPECT_EQ(out.id, 0x100u);
+    EXPECT_EQ(out.data[0], 0xAA);
 
     ASSERT_TRUE(buffer.pop(out));
-    EXPECT_EQ(out.timestamp_ms, 2000u);
-    EXPECT_FLOAT_EQ(out.temperature_c, 23.0f);
+    EXPECT_EQ(out.id, 0x200u);
+    EXPECT_EQ(out.data[0], 0xCC);
 
     EXPECT_TRUE(buffer.empty());
 }
 
-TEST(SampleRingBufferTest, RejectsPushWhenFullAndOverwriteDisabled) {
-    SampleRingBuffer<2> buffer;
-    EXPECT_TRUE(buffer.push({100, 20.0f, 40.0f, 3700.0f}));
-    EXPECT_TRUE(buffer.push({200, 21.0f, 41.0f, 3700.0f}));
+TEST(RingBufferTest, RejectsPushWhenFullAndOverwriteDisabled) {
+    RingBuffer<int, 2> buffer;
+    EXPECT_TRUE(buffer.push(10));
+    EXPECT_TRUE(buffer.push(20));
     EXPECT_TRUE(buffer.full());
 
-    // Não deve sobrescrever por padrão
-    EXPECT_FALSE(buffer.push({300, 22.0f, 42.0f, 3700.0f}, false));
+    EXPECT_FALSE(buffer.push(30, false));
     EXPECT_EQ(buffer.size(), 2u);
 }
 
-TEST(SampleRingBufferTest, OverwritesOldestSampleWhenOverwriteEnabled) {
-    SampleRingBuffer<2> buffer;
-    EXPECT_TRUE(buffer.push({100, 20.0f, 40.0f, 3700.0f}));
-    EXPECT_TRUE(buffer.push({200, 21.0f, 41.0f, 3700.0f}));
+TEST(RingBufferTest, OverwritesOldestElementWhenOverwriteEnabled) {
+    RingBuffer<int, 2> buffer;
+    EXPECT_TRUE(buffer.push(10));
+    EXPECT_TRUE(buffer.push(20));
 
-    // Com overwrite = true, a amostra de t=100 é descartada e t=300 entra
-    EXPECT_TRUE(buffer.push({300, 22.0f, 42.0f, 3700.0f}, true));
+    EXPECT_TRUE(buffer.push(30, true));
     EXPECT_EQ(buffer.size(), 2u);
 
-    hal::SensorReading first{};
+    int first = 0;
+    int second = 0;
     ASSERT_TRUE(buffer.pop(first));
-    EXPECT_EQ(first.timestamp_ms, 200u);
-
-    hal::SensorReading second{};
     ASSERT_TRUE(buffer.pop(second));
-    EXPECT_EQ(second.timestamp_ms, 300u);
+    EXPECT_EQ(first, 20);
+    EXPECT_EQ(second, 30);
 }
 
 } // namespace datalogger::testing
-

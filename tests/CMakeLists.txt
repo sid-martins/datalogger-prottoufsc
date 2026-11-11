@@ -24,20 +24,22 @@ endif()
 
 enable_testing()
 
-# Diretórios dos componentes que serão testados no Host (independentes de hardware)
+# Diretórios dos componentes que serão testados no Host
 set(COMPONENTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../components")
 
-# Biblioteca reunindo o código de produção (RingBuffer + DataloggerCore) para linkar nos testes
+# Biblioteca reunindo os módulos do Datalogger (RingBuffer + CAN Bus)
 add_library(datalogger_core_lib STATIC
     "${COMPONENTS_DIR}/ring_buffer/src/ring_buffer.cpp"
-    "${COMPONENTS_DIR}/datalogger_core/src/datalogger_service.cpp"
+    "${COMPONENTS_DIR}/can_bus/src/can_controller.cpp"
+    "${COMPONENTS_DIR}/can_bus/src/esp32_twai_driver.cpp"
 )
 
 target_include_directories(datalogger_core_lib PUBLIC
     "${COMPONENTS_DIR}/board_config/include"
     "${COMPONENTS_DIR}/hal_interfaces/include"
     "${COMPONENTS_DIR}/ring_buffer/include"
-    "${COMPONENTS_DIR}/datalogger_core/include"
+    "${COMPONENTS_DIR}/can_bus/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/esp_idf_stubs/include"
 )
 
 target_compile_options(datalogger_core_lib PRIVATE
@@ -48,7 +50,7 @@ target_compile_options(datalogger_core_lib PRIVATE
 add_executable(datalogger_unit_tests
     test_board_pins.cpp
     test_ring_buffer.cpp
-    test_datalogger_service.cpp
+    test_can_controller.cpp
 )
 
 target_include_directories(datalogger_unit_tests PRIVATE

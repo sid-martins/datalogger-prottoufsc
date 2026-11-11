@@ -14,8 +14,8 @@ Este arquivo (`GEMINI.md`) funciona como a memória persistente e guia arquitetu
 ## 2. Arquitetura e Regras de Projeto (TDD & FreeRTOS)
 
 1. **Desacoplamento de Hardware (HAL / Injeção de Dependência):**
-   - Toda regra de negócio, filtragem, formatação de dados, máquina de estados e lógica das tasks do FreeRTOS deve ficar em `components/` e depender exclusivamente de interfaces puras definidas em `components/hal_interfaces/include/` (ex: `ISensor`, `IStorage`, `IRtosQueue<T>`).
-   - **Nunca** acople chamadas diretas de periféricos do ESP-IDF (`driver/i2c.h`, `driver/adc.h`, `esp_vfs_fat.h`) dentro da lógica de negócio (`datalogger_core`, `ring_buffer`, etc.). Crie interfaces em `hal_interfaces`, mocks em `tests/mocks/` e implementações reais do ESP32-S3 em componentes de driver específicos ou em `main/`.
+   - Toda regra de negócio, filtragem, formatação de dados, máquina de estados e lógica das tasks do FreeRTOS deve ficar em `components/` e depender exclusivamente de interfaces puras definidas em `components/hal_interfaces/include/` (ex: `ICanDriver`, `IStorage`, `IRtosQueue<T>`).
+   - Os drivers concretos do ESP32-S3 (ex: `Esp32TwaiDriver` usando `driver/twai.h`) implementam essas interfaces, permitindo testar 100% dos controladores via Google Test / Google Mock no Host.
 
 2. **Fluxo Obrigatório de TDD (Red -> Green -> Refactor):**
    - Ao criar ou alterar qualquer funcionalidade do Datalogger:
@@ -78,7 +78,7 @@ Este arquivo (`GEMINI.md`) funciona como a memória persistente e guia arquitetu
   ```
 - **Verificar sintaxe do `main/main.cpp` com os stubs do ESP-IDF:**
   ```powershell
-  & "C:\Users\gusta\AppData\Local\Microsoft\WinGet\Packages\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\llvm-mingw-20261020-ucrt-x86_64\bin\g++.exe" -fsyntax-only -std=c++17 -Wall -Wextra -Imain -Icomponents/board_config/include -Icomponents/hal_interfaces/include -Icomponents/ring_buffer/include -Icomponents/datalogger_core/include -Itests/esp_idf_stubs/include main/main.cpp
+  & "C:\Users\gusta\AppData\Local\Microsoft\WinGet\Packages\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\llvm-mingw-20261020-ucrt-x86_64\bin\g++.exe" -fsyntax-only -std=c++17 -Wall -Wextra -Imain -Icomponents/board_config/include -Icomponents/hal_interfaces/include -Icomponents/ring_buffer/include -Icomponents/can_bus/include -Itests/esp_idf_stubs/include main/main.cpp
   ```
 - **Compilar e gravar no ESP32-S3 (via terminal ESP-IDF):**
   ```powershell
@@ -92,11 +92,12 @@ Este arquivo (`GEMINI.md`) funciona como a memória persistente e guia arquitetu
 ## 5. Estado Atual do Projeto (Histórico de Progresso)
 - [x] Estrutura base do projeto ESP-IDF (`main/`, `components/`, `sdkconfig.defaults`, `partitions.csv`).
 - [x] Ambiente de testes Host no Windows configurado com CMake, Ninja, LLVM-MinGW e Google Test v1.14.0 (`tests/` e `run_tests.ps1`).
-- [x] Interfaces HAL (`ISensor`, `IStorage`, `IRtosQueue`) e Mocks (`MockSensor`, `MockStorage`, `FakeRtosQueue`).
-- [x] Componentes iniciais testados via TDD: `SampleRingBuffer` e `DataloggerService`.
+- [x] Interfaces HAL (`ICanDriver`, `IStorage`, `IRtosQueue`) e Mocks (`MockCanDriver`, `MockStorage`, `FakeRtosQueue`).
+- [x] Buffer circular genérico sem alocação dinâmica (`RingBuffer<T, Capacity>`).
 - [x] Configuração de IntelliSense do VS Code (`.vscode/c_cpp_properties.json`, `.clangd`) e headers stub do ESP-IDF (`tests/esp_idf_stubs/`).
 - [x] Arquivo central de mapeamento de portas e tags do ESP32-S3 (`components/board_config/include/board_pins.h`) atualizado com os 26 sinais reais do esquemático elétrico (`Main.SchDoc` / `CPU.SchDoc`) e validado via TDD (`test_board_pins.cpp`).
-- [ ] Implementação dos módulos de periféricos reais do Datalogger via TDD (ADC 10 canais, RTC DS3231 I2C, CAN/TWAI SN65HVD230, GPS Neo-8M UART, MicroSD e UI de Botões/LEDs).
+- [x] Módulo de Comunicação CAN (`components/can_bus`: `CanController` + `Esp32TwaiDriver` para o transceptor `SN65HVD230DR` nos pinos `GPIO 15` TX e `GPIO 16` RX @ 500 kbps, suporte a Standard 11-bit e Extended 29-bit e auto-recovery de Bus-Off) validado via TDD (`test_can_controller.cpp`).
+- [ ] Implementação dos próximos módulos de periféricos do Datalogger via TDD (ADC 10 canais, RTC DS3231 I2C, GPS Neo-8M UART, MicroSD e UI de Botões/LEDs).
 
 > **Regra de Manutenção:** Sempre que uma etapa importante for concluída ou um novo componente arquitetural for adicionado ao projeto, atualize a seção **5. Estado Atual do Projeto** deste arquivo `GEMINI.md` e o `README.md`.
 

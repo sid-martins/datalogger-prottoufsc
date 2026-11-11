@@ -3,20 +3,18 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "esp_timer.h"
 
 #include "board_pins.h"
-#include "datalogger_service.hpp"
+#include "can_controller.hpp"
+#include "esp32_twai_driver.hpp"
 #include "i_rtos_queue.hpp"
-#include "i_sensor.hpp"
-#include "i_storage.hpp"
 
 namespace {
 
 constexpr const char* kTag = "DATALOGGER_MAIN";
 
 /**
- * @brief Implementação real da fila do FreeRTOS para o ESP32-S3.
+ * @brief Adaptador de fila real do FreeRTOS para comunicação entre tasks no ESP32-S3.
  */
 template <typename T>
 class FreeRtosQueueAdapter : public datalogger::hal::IRtosQueue<T> {
@@ -50,76 +48,38 @@ private:
     QueueHandle_t handle_{nullptr};
 };
 
-/**
- * @brief Exemplo de driver de sensor no ESP32-S3 (substitua pelo seu driver I2C/SPI/ADC real).
- */
-class Esp32SimulatedSensor : public datalogger::hal::ISensor {
-public:
-    bool init() override {
-        ESP_LOGI(kTag, "Sensor inicializado no ESP32-S3");
-        return true;
-    }
-
-    bool read(datalogger::hal::SensorReading& out_reading) override {
-        out_reading.timestamp_ms = static_cast<uint64_t>(esp_timer_get_time() / 1000ULL);
-        out_reading.temperature_c = 25.4f;
-        out_reading.humidity_pct = 61.2f;
-        out_reading.battery_mv = 3720.0f;
-        return true;
-    }
+struct CanTaskContext {
+    datalogger::can::CanController* controller;
+    datalogger::hal::IRtosQueue<datalogger::hal::CanFrame>* rx_queue;
 };
 
 /**
- * @brief Exemplo de driver de Storage no ESP32-S3 (substitua por SDMMC/SPI SD ou FATFS/LittleFS).
+ * @brief Task de Recepção CAN (FreeRTOS Core 1) - Lê frames do SN65HVD230DR e enfileira.
  */
-class Esp32ConsoleStorage : public datalogger::hal::IStorage {
-public:
-    bool mount() override {
-        ESP_LOGI(kTag, "Storage montado (/storage)");
-        return true;
-    }
-
-    bool append_line(std::string_view file_path, std::string_view line) override {
-        ESP_LOGI(kTag, "[%.*s] %.*s",
-                 static_cast<int>(file_path.size()), file_path.data(),
-                 static_cast<int>(line.size()), line.data());
-        return true;
-    }
-
-    bool sync() override {
-        ESP_LOGI(kTag, "Storage fsync concluido");
-        return true;
-    }
-};
-
-/**
- * @brief Task Produtora (FreeRTOS) - Amostragem periódica dos sensores.
- * Fixada no Core 1 (APP_CPU) do ESP32-S3 para determinismo.
- */
-void sensor_acquisition_task(void* pvParameters) {
-    auto* service = static_cast<datalogger::DataloggerService*>(pvParameters);
-    TickType_t last_wake_time = xTaskGetTickCount();
-    const TickType_t sample_period_ticks = pdMS_TO_TICKS(1000); // 1 Hz
+void can_rx_task(void* pvParameters) {
+    auto* ctx = static_cast<CanTaskContext*>(pvParameters);
 
     while (true) {
-        if (!service->acquisition_step(50)) {
-            ESP_LOGW(kTag, "Falha na aquisicao (erros=%lu, drops=%lu)",
-                     static_cast<unsigned long>(service->read_errors()),
-                     static_cast<unsigned long>(service->dropped_samples()));
-        }
-        vTaskDelayUntil(&last_wake_time, sample_period_ticks);
+        ctx->controller->check_and_recover_bus();
+        ctx->controller->receive_to_queue(*ctx->rx_queue, 100, 10);
     }
 }
 
 /**
- * @brief Task Consumidora (FreeRTOS) - Persistência em armazenamento não-volátil.
- * Fixada no Core 0 (PRO_CPU) do ESP32-S3.
+ * @brief Task Consumidora (FreeRTOS Core 0) - Processa/grava os frames CAN recebidos.
  */
-void storage_writer_task(void* pvParameters) {
-    auto* service = static_cast<datalogger::DataloggerService*>(pvParameters);
+void can_logger_task(void* pvParameters) {
+    auto* rx_queue = static_cast<datalogger::hal::IRtosQueue<datalogger::hal::CanFrame>*>(pvParameters);
+    datalogger::hal::CanFrame frame{};
 
     while (true) {
-        service->storage_step(500);
+        if (rx_queue->receive(frame, 500)) {
+            ESP_LOGI(kTag, "[CAN RX] ID=0x%08lX (%s) DLC=%u t=%llu ms",
+                     static_cast<unsigned long>(frame.id),
+                     frame.is_extended ? "EXT" : "STD",
+                     static_cast<unsigned>(frame.dlc),
+                     static_cast<unsigned long long>(frame.timestamp_ms));
+        }
     }
 }
 
@@ -127,40 +87,36 @@ void storage_writer_task(void* pvParameters) {
 
 extern "C" void app_main(void) {
     ESP_LOGI(kTag, "Inicializando Firmware Datalogger ESP32-S3...");
-    ESP_LOGI(kTag, "Pino I2C SDA: GPIO %d (%s) | SCL: GPIO %d (%s)",
-             static_cast<int>(PIN_I2C_SDA), TAG_I2C_SDA,
-             static_cast<int>(PIN_I2C_SCL), TAG_I2C_SCL);
 
-    static FreeRtosQueueAdapter<datalogger::hal::SensorReading> sample_queue(32);
-    static Esp32SimulatedSensor sensor;
-    static Esp32ConsoleStorage storage;
-    static datalogger::DataloggerService datalogger_service(
-        sensor, storage, sample_queue, "/storage/datalog.csv", 5);
+    static FreeRtosQueueAdapter<datalogger::hal::CanFrame> can_rx_queue(64);
+    static datalogger::can::Esp32TwaiDriver twai_driver;
+    static datalogger::can::CanController can_controller(twai_driver);
 
-    if (!datalogger_service.initialize()) {
-        ESP_LOGE(kTag, "Falha critica ao inicializar o DataloggerService!");
+    // Inicializa com a configuração padrão do esquemático (GPIO 15 TX, GPIO 16 RX @ 500 kbps)
+    if (!can_controller.initialize()) {
+        ESP_LOGE(kTag, "Falha ao inicializar barramento CAN (SN65HVD230DR)!");
         return;
     }
 
-    // Criação das Tasks no FreeRTOS (Dual-Core ESP32-S3)
+    static CanTaskContext can_ctx{&can_controller, &can_rx_queue};
+
     xTaskCreatePinnedToCore(
-        sensor_acquisition_task,
-        "acq_task",
+        can_rx_task,
+        "can_rx_task",
         4096,
-        &datalogger_service,
+        &can_ctx,
         configMAX_PRIORITIES - 2,
         nullptr,
-        1 // Core 1: Aquisição em tempo real
+        1 // Core 1: Aquisição em tempo real do barramento CAN
     );
 
     xTaskCreatePinnedToCore(
-        storage_writer_task,
-        "storage_task",
+        can_logger_task,
+        "can_log_task",
         4096,
-        &datalogger_service,
+        &can_rx_queue,
         tskIDLE_PRIORITY + 2,
         nullptr,
-        0 // Core 0: I/O de escrita em cartão SD / Flash
+        0 // Core 0: Persistência e logs
     );
 }
-
