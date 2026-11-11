@@ -1,42 +1,86 @@
-# Contexto e Diretrizes do Projeto: Datalogger ESP32-S3
+# Contexto e Diretrizes do Projeto: Datalogger ESP32-S3 (Padrão Motorsport)
 
 Este arquivo (`GEMINI.md`) funciona como a memória persistente e guia arquitetural do projeto para o assistente de IA (equivalente ao `CLAUDE.md`). Ele é carregado automaticamente em todas as sessões dentro deste repositório.
 
 ---
 
 ## 1. Visão Geral do Projeto
-- **Produto:** Firmware de um Datalogger embarcado baseado no microcontrolador **ESP32-S3** (Kit de desenvolvimento padrão DevKitC-1).
-- **Framework Principal:** **ESP-IDF nativo** com **FreeRTOS** e **C++17**.
-- **Metodologia de Desenvolvimento:** **TDD (Test-Driven Development)** utilizando **Google Test (`gtest` + `gmock` v1.14.0)** compilado e executado localmente no Host (Windows x64) via CMake + Ninja + LLVM-MinGW (`Clang/G++ 23.1.4`).
+- **Produto:** Firmware de um Datalogger Automotivo / Motorsport baseado no microcontrolador **ESP32-S3** (`ESP32-S3-DEVKITC-1-N8R2`).
+- **Framework Principal:** **ESP-IDF nativo** com **FreeRTOS (Dual-Core)** e **C++17**.
+- **Arquitetura de Software:** Camadas no padrão **Motorsport / AUTOSAR / Aeroespacial** (`BSP`, `OSAL`, `HAL`, `LLD`, `BSW`, `ASW` e `SIL`).
+- **Metodologia de Desenvolvimento:** **TDD (Test-Driven Development)** com testes **SIL (Software-in-the-Loop)** utilizando **Google Test (`gtest` + `gmock` v1.14.0)** compilados e executados localmente no Host (Windows x64) via CMake + Ninja + LLVM-MinGW (`Clang/G++ 23.1.4`).
 
 ---
 
-## 2. Arquitetura e Regras de Projeto (TDD & FreeRTOS)
+## 2. Arquitetura em Camadas (Padrão Motorsport)
 
-1. **Desacoplamento de Hardware (HAL / Injeção de Dependência):**
-   - Toda regra de negócio, filtragem, formatação de dados, máquina de estados e lógica das tasks do FreeRTOS deve ficar em `components/` e depender exclusivamente de interfaces puras definidas em `components/hal_interfaces/include/` (ex: `ICanDriver`, `IStorage`, `IRtosQueue<T>`).
-   - Os drivers concretos do ESP32-S3 (ex: `Esp32TwaiDriver` usando `driver/twai.h`) implementam essas interfaces, permitindo testar 100% dos controladores via Google Test / Google Mock no Host.
+```text
++-------------------------------------------------------------------+
+| ASW (Application Software) - main/main.cpp                        |
+| Orquestração das Tasks Dual-Core e Máquina de Estados de Pista    |
++---------------------------------+---------------------------------+
+                                  |
++---------------------------------v---------------------------------+
+| BSW (Basic Software Services) - components/bsw/                   |
+| Serviços independentes de silício (CanService, RingBuffer, etc.)  |
++----------------+---------------------------------+----------------+
+                 |                                 |
++----------------v----------------+ +--------------v----------------+
+| HAL (Hardware Abstraction Layer)| | OSAL (OS Abstraction Layer)   |
+| components/hal/ (ICanHal, etc.) | | components/osal/ (IOsalQueue) |
++--------+---------------+--------+ +-------+---------------+-------+
+         |               |                  |               |
+   [No ESP32-S3]    [No PC / SIL]     [No ESP32-S3]    [No PC / SIL]
+         |               |                  |               |
++--------v-------+ +-----v--------+ +-------v-------+ +-----v-------+
+| LLD (Low-Level | | SIL Mocks    | | FreeRTOS      | | FakeOsal    |
+| Drivers/MCAL)  | | tests/       | | Adapter       | | Queue       |
+| components/lld/| | sil_mocks/   | | components/   | | tests/      |
++--------+-------+ +--------------+ | osal/         | | sil_mocks/  |
+         |                          +---------------+ +-------------+
++--------v-------+
+| BSP (Board     |
+| Support Pkg)   |
+| components/bsp/|
++----------------+
+```
 
-2. **Fluxo Obrigatório de TDD (Red -> Green -> Refactor):**
-   - Ao criar ou alterar qualquer funcionalidade do Datalogger:
-     1. Escreva ou atualize primeiro o teste unitário correspondente em `tests/`.
-     2. Execute `.\run_tests.ps1` para validar o teste no Host.
-     3. Implemente o código de produção em `components/` mantendo `0 warnings` (`-Wall -Wextra -Wpedantic`).
-     4. Caso adicione um novo componente em `components/`, registre-o também em:
-        - `main/CMakeLists.txt` (`REQUIRES`)
-        - `tests/CMakeLists.txt` (`add_library` / `target_include_directories`)
-        - `.vscode/c_cpp_properties.json` e `.clangd` (para manter o IntelliSense sem erros)
-
-3. **Boas Práticas de Sistemas Embarcados (ESP32-S3 & FreeRTOS):**
-   - Evite alocação dinâmica de memória (heap / `new` / `malloc`) dentro de loops de amostragem em tempo real; prefira estruturas estáticas como `SampleRingBuffer<N>`.
-   - Mantenha a separação Dual-Core do ESP32-S3:
-     - **Core 1 (APP_CPU):** Tasks de aquisição em tempo real e leitura determinística de sensores (`vTaskDelayUntil`).
-     - **Core 0 (PRO_CPU):** Tasks de escrita em armazenamento (SD Card / Flash FATFS), comunicação serial/Wi-Fi e serviços de sistema.
+### Responsabilidade de Cada Camada:
+1. **`components/bsp/` (Board Support Package — namespace `datalogger::bsp`):**
+   - Contém a *Pinning Table* oficial da placa (`bsp_pins.h`), mapeando os 26 sinais elétricos do esquemático (`Main.SchDoc` / `CPU.SchDoc`) com pares `PIN_*` e `TAG_*`.
+2. **`components/osal/` (Operating System Abstraction Layer — namespace `datalogger::osal`):**
+   - Abstrai primitivas do RTOS (`i_osal_queue.hpp` / `IOsalQueue<T>`) e fornece o adaptador real para o FreeRTOS (`freertos_queue_adapter.hpp` / `FreeRtosQueueAdapter<T>`).
+3. **`components/hal/` (Hardware Abstraction Layer — namespace `datalogger::hal`):**
+   - Define os tipos de dados de fronteira (`CanFrame`, `CanConfig`) e contratos puramente virtuais (`ICanHal`, `IStorageHal`). Não possui dependência de registradores do ESP32-S3.
+4. **`components/lld/` (Low-Level Drivers / MCAL — namespace `datalogger::lld`):**
+   - Implementa os drivers de silício do ESP32-S3 e transceptores da PCB (ex: `CanTwaiLld` em `can_twai_lld.cpp`, conversando com `driver/twai.h` e o `SN65HVD230DR`).
+5. **`components/bsw/` (Basic Software Services — namespace `datalogger::bsw`):**
+   - Serviços de comunicação, diagnóstico, validação, formatação e estruturas estáticas sem uso de heap (`CanService`, `RingBuffer<T, Capacity>`). Depende apenas de `hal`, `osal` e `bsp`.
+6. **`main/` (ASW — Application Software):**
+   - Instancia os objetos estáticos, conecta `LLD -> HAL -> BSW` e cria as tasks do FreeRTOS fixadas por núcleo:
+     - **Core 1 (APP_CPU):** Aquisição determinística em tempo real (CAN RX, leitura de ADC).
+     - **Core 0 (PRO_CPU):** Gravação em MicroSD/Flash, telemetria e diagnóstico.
+7. **`tests/` e `tests/sil_mocks/` (SIL — Software-in-the-Loop — namespace `datalogger::sil`):**
+   - Testes unitários e de integração no PC usando Google Test / Google Mock (`MockCanHal`, `MockStorageHal`, `FakeOsalQueue`).
 
 ---
 
-## 3. Mapeamento Oficial de Pinos e IOs (`board_pins.h` - Esquemático `CPU.SchDoc`)
-- Todos os 26 pinos do **ESP32-S3-DEVKITC-1-N8R2 (`U3`)** e suas respectivas tags de identificação ficam centralizados em `components/board_config/include/board_pins.h`:
+## 3. Fluxo Obrigatório de TDD (Red -> Green -> Refactor)
+
+Ao criar ou alterar qualquer funcionalidade do Datalogger:
+1. Defina ou atualize o contrato em `components/hal/` ou `components/osal/` (se necessário) e o mock correspondente em `tests/sil_mocks/`.
+2. Escreva primeiro o teste SIL/unitário em `tests/`.
+3. Execute `.\run_tests.ps1` para validar o teste no Host.
+4. Implemente o serviço em `components/bsw/` e o driver de silício em `components/lld/` mantendo **0 warnings** (`-Wall -Wextra -Wpedantic`).
+5. Caso adicione um novo componente em `components/`, registre-o em:
+   - `main/CMakeLists.txt` (`REQUIRES`)
+   - `tests/CMakeLists.txt` (`add_library` / `target_include_directories`)
+   - `.vscode/c_cpp_properties.json` e `.clangd`
+
+---
+
+## 4. Pinning Table Oficial no BSP (`components/bsp/include/bsp_pins.h`)
+- Todos os 26 pinos do **ESP32-S3-DEVKITC-1-N8R2 (`U3`)** mapeados a partir do esquemático:
   - **ADC1 - Motor (`Measurement_Engine.SchDoc` - `U8`/`U9` MCP6022):**
     - `GPIO 1` (`ADC1_CH0`): `PIN_ADC_OIL_PRESSURE` (`"OilPressure"`)
     - `GPIO 2` (`ADC1_CH1`): `PIN_ADC_OIL_TEMP` (`"OilTemp"`)
@@ -70,15 +114,15 @@ Este arquivo (`GEMINI.md`) funciona como a memória persistente e guia arquitetu
 
 ---
 
-## 4. Comandos Úteis do Ambiente
+## 5. Comandos Úteis do Ambiente
 
-- **Executar todos os testes unitários no Windows (Host):**
+- **Executar todos os testes SIL / Unitários no Windows (Host):**
   ```powershell
   .\run_tests.ps1
   ```
-- **Verificar sintaxe do `main/main.cpp` com os stubs do ESP-IDF:**
+- **Verificar sintaxe do `main/main.cpp` (ASW) com os stubs do ESP-IDF:**
   ```powershell
-  & "C:\Users\gusta\AppData\Local\Microsoft\WinGet\Packages\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\llvm-mingw-20261020-ucrt-x86_64\bin\g++.exe" -fsyntax-only -std=c++17 -Wall -Wextra -Imain -Icomponents/board_config/include -Icomponents/hal_interfaces/include -Icomponents/ring_buffer/include -Icomponents/can_bus/include -Itests/esp_idf_stubs/include main/main.cpp
+  & "C:\Users\gusta\AppData\Local\Microsoft\WinGet\Packages\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\llvm-mingw-20261020-ucrt-x86_64\bin\g++.exe" -fsyntax-only -std=c++17 -Wall -Wextra -Imain -Icomponents/bsp/include -Icomponents/osal/include -Icomponents/hal/include -Icomponents/lld/include -Icomponents/bsw/include -Itests/esp_idf_stubs/include main/main.cpp
   ```
 - **Compilar e gravar no ESP32-S3 (via terminal ESP-IDF):**
   ```powershell
@@ -89,15 +133,13 @@ Este arquivo (`GEMINI.md`) funciona como a memória persistente e guia arquitetu
 
 ---
 
-## 5. Estado Atual do Projeto (Histórico de Progresso)
+## 6. Estado Atual do Projeto (Histórico de Progresso)
 - [x] Estrutura base do projeto ESP-IDF (`main/`, `components/`, `sdkconfig.defaults`, `partitions.csv`).
-- [x] Ambiente de testes Host no Windows configurado com CMake, Ninja, LLVM-MinGW e Google Test v1.14.0 (`tests/` e `run_tests.ps1`).
-- [x] Interfaces HAL (`ICanDriver`, `IStorage`, `IRtosQueue`) e Mocks (`MockCanDriver`, `MockStorage`, `FakeRtosQueue`).
-- [x] Buffer circular genérico sem alocação dinâmica (`RingBuffer<T, Capacity>`).
-- [x] Configuração de IntelliSense do VS Code (`.vscode/c_cpp_properties.json`, `.clangd`) e headers stub do ESP-IDF (`tests/esp_idf_stubs/`).
-- [x] Arquivo central de mapeamento de portas e tags do ESP32-S3 (`components/board_config/include/board_pins.h`) atualizado com os 26 sinais reais do esquemático elétrico (`Main.SchDoc` / `CPU.SchDoc`) e validado via TDD (`test_board_pins.cpp`).
-- [x] Módulo de Comunicação CAN (`components/can_bus`: `CanController` + `Esp32TwaiDriver` para o transceptor `SN65HVD230DR` nos pinos `GPIO 15` TX e `GPIO 16` RX @ 500 kbps, suporte a Standard 11-bit e Extended 29-bit e auto-recovery de Bus-Off) validado via TDD (`test_can_controller.cpp`).
-- [ ] Implementação dos próximos módulos de periféricos do Datalogger via TDD (ADC 10 canais, RTC DS3231 I2C, GPS Neo-8M UART, MicroSD e UI de Botões/LEDs).
+- [x] Ambiente de testes SIL no Host Windows configurado com CMake, Ninja, LLVM-MinGW e Google Test v1.14.0 (`tests/` e `run_tests.ps1`).
+- [x] Reestruturação completa para nomenclatura e arquitetura em camadas **Motorsport** (`bsp`, `osal`, `hal`, `lld`, `bsw`, `asw` e `sil_mocks`).
+- [x] **BSP (`components/bsp/include/bsp_pins.h`):** Pinning Table com os 26 sinais reais do esquemático elétrico validada via TDD (`test_bsp_pins.cpp`).
+- [x] **OSAL (`components/osal/`):** Interface `IOsalQueue<T>`, adaptador real `FreeRtosQueueAdapter<T>` e dublê SIL `FakeOsalQueue<T>`.
+- [x] **CAN Bus (`ICanHal` + `CanTwaiLld` + `CanService`):** Comunicação com o transceptor `SN65HVD230DR` (`GPIO 15` TX / `GPIO 16` RX @ 500 kbps), suporte a Standard 11-bit e Extended 29-bit, enfileiramento via OSAL e recuperação automática de *Bus-Off*, validado com 18 testes SIL (`test_can_service.cpp`).
+- [ ] Implementação dos próximos módulos (LLD + HAL + BSW) via TDD: Aquisição Analógica ADC1 (10 canais), RTC `DS3231SN#` (I2C), GPS `Neo-8M` (UART), Cartão MicroSD (`J4`) e Interface de Botões/LEDs.
 
-> **Regra de Manutenção:** Sempre que uma etapa importante for concluída ou um novo componente arquitetural for adicionado ao projeto, atualize a seção **5. Estado Atual do Projeto** deste arquivo `GEMINI.md` e o `README.md`.
-
+> **Regra de Manutenção:** Sempre que uma etapa importante for concluída ou um novo módulo for adicionado ao projeto, atualize a seção **6. Estado Atual do Projeto** deste arquivo `GEMINI.md` e o `README.md`.

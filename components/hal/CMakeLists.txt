@@ -1,4 +1,5 @@
 idf_component_register(
     INCLUDE_DIRS "include"
-    REQUIRES board_config
+    REQUIRES bsp
 )
+

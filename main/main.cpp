@@ -1,75 +1,40 @@
-#include <cstdio>
 #include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
 #include "freertos/task.h"
 #include "esp_log.h"
 
-#include "board_pins.h"
-#include "can_controller.hpp"
-#include "esp32_twai_driver.hpp"
-#include "i_rtos_queue.hpp"
+#include "bsp_pins.h"
+#include "can_service.hpp"
+#include "can_twai_lld.hpp"
+#include "freertos_queue_adapter.hpp"
 
 namespace {
 
-constexpr const char* kTag = "DATALOGGER_MAIN";
-
-/**
- * @brief Adaptador de fila real do FreeRTOS para comunicação entre tasks no ESP32-S3.
- */
-template <typename T>
-class FreeRtosQueueAdapter : public datalogger::hal::IRtosQueue<T> {
-public:
-    explicit FreeRtosQueueAdapter(UBaseType_t length) {
-        handle_ = xQueueCreate(length, sizeof(T));
-    }
-
-    ~FreeRtosQueueAdapter() override {
-        if (handle_ != nullptr) {
-            vQueueDelete(handle_);
-        }
-    }
-
-    bool send(const T& item, uint32_t timeout_ms) override {
-        if (handle_ == nullptr) return false;
-        return xQueueSend(handle_, &item, pdMS_TO_TICKS(timeout_ms)) == pdTRUE;
-    }
-
-    bool receive(T& out_item, uint32_t timeout_ms) override {
-        if (handle_ == nullptr) return false;
-        return xQueueReceive(handle_, &out_item, pdMS_TO_TICKS(timeout_ms)) == pdTRUE;
-    }
-
-    uint32_t messages_waiting() const override {
-        if (handle_ == nullptr) return 0;
-        return static_cast<uint32_t>(uxQueueMessagesWaiting(handle_));
-    }
-
-private:
-    QueueHandle_t handle_{nullptr};
-};
+constexpr const char* kTag = "ASW_MAIN";
 
 struct CanTaskContext {
-    datalogger::can::CanController* controller;
-    datalogger::hal::IRtosQueue<datalogger::hal::CanFrame>* rx_queue;
+    datalogger::bsw::CanService* service;
+    datalogger::osal::IOsalQueue<datalogger::hal::CanFrame>* rx_queue;
 };
 
 /**
- * @brief Task de Recepção CAN (FreeRTOS Core 1) - Lê frames do SN65HVD230DR e enfileira.
+ * @brief ASW Task de Aquisição CAN (FreeRTOS Core 1)
+ * Lê frames do LLD (SN65HVD230DR) via BSW CanService e enfileira na OSAL Queue.
  */
 void can_rx_task(void* pvParameters) {
     auto* ctx = static_cast<CanTaskContext*>(pvParameters);
 
     while (true) {
-        ctx->controller->check_and_recover_bus();
-        ctx->controller->receive_to_queue(*ctx->rx_queue, 100, 10);
+        ctx->service->check_and_recover_bus();
+        ctx->service->receive_to_queue(*ctx->rx_queue, 100, 10);
     }
 }
 
 /**
- * @brief Task Consumidora (FreeRTOS Core 0) - Processa/grava os frames CAN recebidos.
+ * @brief ASW Task Consumidora / Datalogger (FreeRTOS Core 0)
+ * Consome os frames da OSAL Queue para persistência e telemetria.
  */
 void can_logger_task(void* pvParameters) {
-    auto* rx_queue = static_cast<datalogger::hal::IRtosQueue<datalogger::hal::CanFrame>*>(pvParameters);
+    auto* rx_queue = static_cast<datalogger::osal::IOsalQueue<datalogger::hal::CanFrame>*>(pvParameters);
     datalogger::hal::CanFrame frame{};
 
     while (true) {
@@ -86,19 +51,19 @@ void can_logger_task(void* pvParameters) {
 } // namespace
 
 extern "C" void app_main(void) {
-    ESP_LOGI(kTag, "Inicializando Firmware Datalogger ESP32-S3...");
+    ESP_LOGI(kTag, "Inicializando Firmware Datalogger ESP32-S3 (Arquitetura Motorsport)...");
 
-    static FreeRtosQueueAdapter<datalogger::hal::CanFrame> can_rx_queue(64);
-    static datalogger::can::Esp32TwaiDriver twai_driver;
-    static datalogger::can::CanController can_controller(twai_driver);
+    static datalogger::osal::FreeRtosQueueAdapter<datalogger::hal::CanFrame> can_rx_queue(64);
+    static datalogger::lld::CanTwaiLld can_twai_lld;
+    static datalogger::bsw::CanService can_service(can_twai_lld);
 
-    // Inicializa com a configuração padrão do esquemático (GPIO 15 TX, GPIO 16 RX @ 500 kbps)
-    if (!can_controller.initialize()) {
-        ESP_LOGE(kTag, "Falha ao inicializar barramento CAN (SN65HVD230DR)!");
+    // Inicializa com a Pinning Table do BSP (GPIO 15 TX, GPIO 16 RX @ 500 kbps)
+    if (!can_service.initialize()) {
+        ESP_LOGE(kTag, "Falha ao inicializar BSW CanService / LLD SN65HVD230DR!");
         return;
     }
 
-    static CanTaskContext can_ctx{&can_controller, &can_rx_queue};
+    static CanTaskContext can_ctx{&can_service, &can_rx_queue};
 
     xTaskCreatePinnedToCore(
         can_rx_task,
@@ -107,7 +72,7 @@ extern "C" void app_main(void) {
         &can_ctx,
         configMAX_PRIORITIES - 2,
         nullptr,
-        1 // Core 1: Aquisição em tempo real do barramento CAN
+        1 // Core 1 (APP_CPU): Aquisição determinística em tempo real
     );
 
     xTaskCreatePinnedToCore(
@@ -117,6 +82,6 @@ extern "C" void app_main(void) {
         &can_rx_queue,
         tskIDLE_PRIORITY + 2,
         nullptr,
-        0 // Core 0: Persistência e logs
+        0 // Core 0 (PRO_CPU): Gravação e serviços de sistema
     );
 }

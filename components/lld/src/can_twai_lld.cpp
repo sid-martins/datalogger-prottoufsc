@@ -1,4 +1,4 @@
-#include "esp32_twai_driver.hpp"
+#include "can_twai_lld.hpp"
 
 #include <cstring>
 #include "driver/twai.h"
@@ -6,10 +6,10 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 
-namespace datalogger::can {
+namespace datalogger::lld {
 
 namespace {
-constexpr const char* kTag = "CAN_TWAI";
+constexpr const char* kTag = "CAN_TWAI_LLD";
 
 twai_mode_t to_twai_mode(hal::CanOperatingMode mode) {
     switch (mode) {
@@ -36,14 +36,14 @@ twai_timing_config_t to_twai_timing(hal::CanBaudRate baud_rate) {
 }
 } // namespace
 
-Esp32TwaiDriver::~Esp32TwaiDriver() {
+CanTwaiLld::~CanTwaiLld() {
     if (installed_) {
         twai_stop();
         twai_driver_uninstall();
     }
 }
 
-bool Esp32TwaiDriver::init(const hal::CanConfig& config) {
+bool CanTwaiLld::init(const hal::CanConfig& config) {
     if (installed_) {
         twai_stop();
         twai_driver_uninstall();
@@ -59,34 +59,34 @@ bool Esp32TwaiDriver::init(const hal::CanConfig& config) {
     const twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
     if (twai_driver_install(&g_config, &t_config, &f_config) != ESP_OK) {
-        ESP_LOGE(kTag, "Falha ao instalar driver TWAI (TX=GPIO %d, RX=GPIO %d)",
+        ESP_LOGE(kTag, "Falha ao instalar LLD TWAI (TX=GPIO %d, RX=GPIO %d)",
                  static_cast<int>(config.tx_pin), static_cast<int>(config.rx_pin));
         return false;
     }
 
     installed_ = true;
-    ESP_LOGI(kTag, "Driver TWAI instalado para SN65HVD230DR (TX=GPIO %d, RX=GPIO %d, %lu bps)",
+    ESP_LOGI(kTag, "LLD TWAI instalado para SN65HVD230DR (TX=GPIO %d, RX=GPIO %d, %lu bps)",
              static_cast<int>(config.tx_pin),
              static_cast<int>(config.rx_pin),
              static_cast<unsigned long>(config.baud_rate));
     return true;
 }
 
-bool Esp32TwaiDriver::start() {
+bool CanTwaiLld::start() {
     if (!installed_) {
         return false;
     }
     return twai_start() == ESP_OK;
 }
 
-bool Esp32TwaiDriver::stop() {
+bool CanTwaiLld::stop() {
     if (!installed_) {
         return false;
     }
     return twai_stop() == ESP_OK;
 }
 
-bool Esp32TwaiDriver::transmit(const hal::CanFrame& frame, uint32_t timeout_ms) {
+bool CanTwaiLld::transmit(const hal::CanFrame& frame, uint32_t timeout_ms) {
     if (!installed_ || frame.dlc > TWAI_FRAME_MAX_DLC) {
         return false;
     }
@@ -106,7 +106,7 @@ bool Esp32TwaiDriver::transmit(const hal::CanFrame& frame, uint32_t timeout_ms) 
     return twai_transmit(&msg, pdMS_TO_TICKS(timeout_ms)) == ESP_OK;
 }
 
-bool Esp32TwaiDriver::receive(hal::CanFrame& out_frame, uint32_t timeout_ms) {
+bool CanTwaiLld::receive(hal::CanFrame& out_frame, uint32_t timeout_ms) {
     if (!installed_) {
         return false;
     }
@@ -129,7 +129,7 @@ bool Esp32TwaiDriver::receive(hal::CanFrame& out_frame, uint32_t timeout_ms) {
     return true;
 }
 
-hal::CanBusState Esp32TwaiDriver::get_state() const {
+hal::CanBusState CanTwaiLld::get_state() const {
     if (!installed_) {
         return hal::CanBusState::kStopped;
     }
@@ -152,12 +152,12 @@ hal::CanBusState Esp32TwaiDriver::get_state() const {
     }
 }
 
-bool Esp32TwaiDriver::initiate_recovery() {
+bool CanTwaiLld::initiate_recovery() {
     if (!installed_) {
         return false;
     }
     return twai_initiate_recovery() == ESP_OK;
 }
 
-} // namespace datalogger::can
+} // namespace datalogger::lld
 

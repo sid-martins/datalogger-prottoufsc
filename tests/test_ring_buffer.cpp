@@ -1,11 +1,11 @@
 #include <gtest/gtest.h>
-#include "i_can_driver.hpp"
+#include "i_can_hal.hpp"
 #include "ring_buffer.hpp"
 
-namespace datalogger::testing {
+namespace datalogger::sil {
 
 TEST(RingBufferTest, StartsEmptyWithExpectedCapacity) {
-    RingBuffer<hal::CanFrame, 4> buffer;
+    bsw::RingBuffer<hal::CanFrame, 4> buffer;
     EXPECT_TRUE(buffer.empty());
     EXPECT_FALSE(buffer.full());
     EXPECT_EQ(buffer.size(), 0u);
@@ -13,7 +13,7 @@ TEST(RingBufferTest, StartsEmptyWithExpectedCapacity) {
 }
 
 TEST(RingBufferTest, PushAndPopCanFramesFollowFifoOrder) {
-    RingBuffer<hal::CanFrame, 3> buffer;
+    bsw::RingBuffer<hal::CanFrame, 3> buffer;
 
     hal::CanFrame frame1{};
     frame1.id = 0x100;
@@ -42,7 +42,7 @@ TEST(RingBufferTest, PushAndPopCanFramesFollowFifoOrder) {
 }
 
 TEST(RingBufferTest, RejectsPushWhenFullAndOverwriteDisabled) {
-    RingBuffer<int, 2> buffer;
+    bsw::RingBuffer<int, 2> buffer;
     EXPECT_TRUE(buffer.push(10));
     EXPECT_TRUE(buffer.push(20));
     EXPECT_TRUE(buffer.full());
@@ -52,7 +52,7 @@ TEST(RingBufferTest, RejectsPushWhenFullAndOverwriteDisabled) {
 }
 
 TEST(RingBufferTest, OverwritesOldestElementWhenOverwriteEnabled) {
-    RingBuffer<int, 2> buffer;
+    bsw::RingBuffer<int, 2> buffer;
     EXPECT_TRUE(buffer.push(10));
     EXPECT_TRUE(buffer.push(20));
 
@@ -67,4 +67,4 @@ TEST(RingBufferTest, OverwritesOldestElementWhenOverwriteEnabled) {
     EXPECT_EQ(second, 30);
 }
 
-} // namespace datalogger::testing
+} // namespace datalogger::sil

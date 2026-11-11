@@ -1,6 +1,20 @@
-# Datalogger ESP32-S3 (ESP-IDF + FreeRTOS + TDD com Google Test)
+# Datalogger ESP32-S3 — Arquitetura Motorsport (ESP-IDF + FreeRTOS + SIL TDD)
 
-Ambiente de desenvolvimento de firmware para o **Datalogger Automotivo com ESP32-S3**, utilizando **ESP-IDF nativo (C++17)**, **FreeRTOS (Dual-Core)** e arquitetura orientada a **TDD (Test-Driven Development)** com **Google Test (GTest + GMock)** rodando localmente no computador (Host Windows).
+Firmware embarcado para **Datalogger Automotivo / Motorsport** baseado no **ESP32-S3 (`ESP32-S3-DEVKITC-1-N8R2`)**, desenvolvido em **C++17** sobre o **ESP-IDF nativo** e **FreeRTOS (Dual-Core)**, seguindo a arquitetura em camadas da indústria de **Motorsport / AUTOSAR** (`BSP`, `OSAL`, `HAL`, `LLD`, `BSW`, `ASW`) e validação **SIL (*Software-in-the-Loop*)** com **Google Test & Google Mock**.
+
+---
+
+## Arquitetura em Camadas (Padrão Motorsport)
+
+| Camada | Diretório / Namespace | Papel na Engenharia |
+| :--- | :--- | :--- |
+| **BSP** (*Board Support Package*) | `components/bsp/` (`datalogger::bsp`) | *Pinning Table* da placa física ([bsp_pins.h](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/bsp/include/bsp_pins.h)): mapeia os 26 sinais do esquemático (`PIN_*` e `TAG_*`). |
+| **OSAL** (*OS Abstraction Layer*) | `components/osal/` (`datalogger::osal`) | Abstrai o sistema operacional de tempo real ([i_osal_queue.hpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/osal/include/i_osal_queue.hpp) e [freertos_queue_adapter.hpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/osal/include/freertos_queue_adapter.hpp)). |
+| **HAL** (*Hardware Abstraction Layer*) | `components/hal/` (`datalogger::hal`) | Contratos puramente virtuais e tipos de fronteira ([i_can_hal.hpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/hal/include/i_can_hal.hpp), [i_storage_hal.hpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/hal/include/i_storage_hal.hpp)). |
+| **LLD** (*Low-Level Drivers / MCAL*) | `components/lld/` (`datalogger::lld`) | Drivers específicos do silício ESP32-S3 e CIs da placa ([can_twai_lld.cpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/lld/src/can_twai_lld.cpp) para o transceptor `SN65HVD230DR`). |
+| **BSW** (*Basic Software Services*) | `components/bsw/` (`datalogger::bsw`) | Serviços de comunicação, diagnóstico, validação e buffers estáticos sem heap ([can_service.cpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/bsw/src/can_service.cpp), [ring_buffer.hpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/bsw/include/ring_buffer.hpp)). |
+| **ASW** (*Application Software*) | `main/` ([main.cpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/main/main.cpp)) | Aplicação final e orquestração das Tasks Dual-Core no ESP32-S3 (Core 1 para aquisição em tempo real; Core 0 para log/armazenamento). |
+| **SIL** (*Software-in-the-Loop*) | `tests/` (`datalogger::sil`) | Suíte de testes automatizados e dublês de hardware (`tests/sil_mocks/`) executados no PC via Google Test. |
 
 ---
 
@@ -8,78 +22,60 @@ Ambiente de desenvolvimento de firmware para o **Datalogger Automotivo com ESP32
 
 ```text
 datalogger/
-├── CMakeLists.txt                  # CMake híbrido: ESP-IDF (via idf.py) ou Testes no Host
-├── GEMINI.md                       # Arquivo de contexto e regras do projeto para o Agente IA (equivalente ao CLAUDE.md)
+├── CMakeLists.txt                  # CMake híbrido: Firmware ESP-IDF (via idf.py) ou Testes SIL no Host
+├── GEMINI.md                       # Contexto e regras arquiteturais para o Agente IA (equivalente ao CLAUDE.md)
 ├── README.md                       # Documentação geral do projeto
 ├── sdkconfig.defaults              # Configurações padrão do ESP32-S3 (Flash 8MB, FreeRTOS 1000Hz)
 ├── partitions.csv                  # Tabela de partições customizada (NVS, Factory App, Storage FAT)
-├── run_tests.ps1                   # Script PowerShell para compilar e executar os testes TDD no Host
-├── .clangd                         # Configuração de flags para servidor de linguagem Clangd
+├── run_tests.ps1                   # Script PowerShell para compilar e rodar a suíte SIL no Windows
+├── .clangd                         # Flags de compilação para o servidor Clangd
 ├── .vscode/
-│   ├── c_cpp_properties.json       # Configuração do IntelliSense (ESP32-S3 + Host TDD)
+│   ├── c_cpp_properties.json       # Configuração do IntelliSense (ESP32-S3 + SIL Host TDD)
 │   └── settings.json               # Associações de arquivos C/C++ no VS Code
-├── main/
-│   ├── CMakeLists.txt              # Registro do componente principal no ESP-IDF
-│   └── main.cpp                    # Entrypoint app_main() + Tasks do FreeRTOS (Core 0 e Core 1)
+├── main/                           # [ASW] Camada de Aplicação
+│   ├── CMakeLists.txt
+│   └── main.cpp                    # Entrypoint app_main() + Tasks Dual-Core (can_rx_task e can_logger_task)
 ├── components/
-│   ├── board_config/               # Mapeamento oficial do esquemático (GPIOs x Constantes PIN_* e TAG_*)
+│   ├── bsp/                        # [BSP] Board Support Package
 │   │   ├── CMakeLists.txt
 │   │   └── include/
-│   │       └── board_pins.h        # 26 sinais do esquemático (ADC1, CAN, RTC I2C, GPS UART, MicroSD, Botões/LEDs)
-│   ├── hal_interfaces/             # Contratos/Interfaces C++ puras para desacoplamento de hardware (TDD)
+│   │       └── bsp_pins.h          # Pinning Table oficial dos 26 sinais do esquemático (CPU.SchDoc)
+│   ├── osal/                       # [OSAL] Operating System Abstraction Layer
 │   │   ├── CMakeLists.txt
 │   │   └── include/
-│   │       ├── i_can_driver.hpp    # Interface ICanDriver, CanFrame, CanConfig (SN65HVD230DR / TWAI)
-│   │       ├── i_storage.hpp       # Interface IStorage (mount, append_line, sync)
-│   │       └── i_rtos_queue.hpp    # Interface IRtosQueue<T> para filas do FreeRTOS
-│   ├── ring_buffer/                # Buffer circular estático genérico RingBuffer<T, Capacity> (sem heap)
+│   │       ├── i_osal_queue.hpp    # Interface IOsalQueue<T>
+│   │       └── freertos_queue_adapter.hpp # Implementação real com xQueue do FreeRTOS
+│   ├── hal/                        # [HAL] Hardware Abstraction Layer
+│   │   ├── CMakeLists.txt
+│   │   └── include/
+│   │       ├── i_can_hal.hpp       # Contrato ICanHal, CanFrame (11/29-bit), CanConfig (500 kbps)
+│   │       └── i_storage_hal.hpp   # Contrato IStorageHal
+│   ├── lld/                        # [LLD] Low-Level Drivers (ESP32-S3 Silício + Periféricos)
 │   │   ├── CMakeLists.txt
 │   │   ├── include/
-│   │   │   └── ring_buffer.hpp
+│   │   │   └── can_twai_lld.hpp    # Driver LLD TWAI para o transceptor SN65HVD230DR (GPIO 15/16)
 │   │   └── src/
-│   │       └── ring_buffer.cpp
-│   └── can_bus/                    # Módulo de comunicação CAN (Transceptor SN65HVD230DR - Communication.SchDoc)
+│   │       └── can_twai_lld.cpp
+│   └── bsw/                        # [BSW] Basic Software Services & Static Containers
 │       ├── CMakeLists.txt
 │       ├── include/
-│       │   ├── can_controller.hpp  # Lógica de controle CAN, validação 11/29-bit, fila RX e auto-recovery Bus-Off
-│       │   └── esp32_twai_driver.hpp # Driver concreto do periférico TWAI do ESP32-S3
+│       │   ├── can_service.hpp     # Serviço CAN (validação, fila OSAL RX, auto-recovery Bus-Off)
+│       │   └── ring_buffer.hpp     # RingBuffer<T, Capacity> estático (sem alocação dinâmica)
 │       └── src/
-│           ├── can_controller.cpp
-│           └── esp32_twai_driver.cpp
-└── tests/
-    ├── CMakeLists.txt              # Build isolado de testes no Host + GoogleTest v1.14.0
-    ├── esp_idf_stubs/              # Headers stub do ESP-IDF/FreeRTOS para IntelliSense e compilação Host
-    │   └── include/
-    │       ├── esp_err.h
-    │       ├── esp_log.h
-    │       ├── esp_timer.h
-    │       ├── driver/ (gpio.h, twai.h)
-    │       └── freertos/ (FreeRTOS.h, task.h, queue.h)
-    ├── mocks/                      # Mocks GMock (MockCanDriver, MockStorage) e FakeRtosQueue
-    ├── test_board_pins.cpp         # Testes unitários validando os 26 pinos e tags do esquemático
-    ├── test_ring_buffer.cpp        # Testes unitários do RingBuffer<T, Capacity>
-    └── test_can_controller.cpp     # Testes unitários do CanController (Standard 11-bit, Extended 29-bit, 500kbps, Bus-Off)
+│           ├── can_service.cpp
+│           └── ring_buffer.cpp
+└── tests/                          # [SIL] Ambiente de Testes Software-in-the-Loop (Host PC)
+    ├── CMakeLists.txt              # Build isolado SIL + GoogleTest v1.14.0
+    ├── esp_idf_stubs/              # Headers stub do ESP-IDF/FreeRTOS para compilação Host e IntelliSense
+    ├── sil_mocks/                  # Mocks e Fakes para simulação SIL (MockCanHal, MockStorageHal, FakeOsalQueue)
+    ├── test_bsp_pins.cpp           # Valida os 26 pinos e tags da Pinning Table do esquemático
+    ├── test_ring_buffer.cpp        # Valida o container estático bsw::RingBuffer
+    └── test_can_service.cpp        # Valida o bsw::CanService (11/29-bit, 500 kbps, fila OSAL, Bus-Off)
 ```
 
 ---
 
-## O Que Já Foi Implementado
-
-1. **Ambiente de Compilação e Testes no Windows (Host TDD)**:
-   - Toolchain C/C++ (**LLVM-MinGW Clang/G++ 23.1.4 UCRT**), **CMake 4.4.4** e **Ninja 1.13.2** configurados.
-   - **Google Test & Google Mock (v1.14.0)** integrado em `tests/external/googletest` (funcionando 100% offline).
-   - 18 testes unitários implementados e passando (`BoardPinsTest`, `RingBufferTest` e `CanControllerTest`).
-2. **Mapeamento Oficial de Portas e IOs do Esquemático (`components/board_config/include/board_pins.h`)**:
-   - Mapeamento completo dos **26 sinais do esquemático** (`Main.SchDoc` / `CPU.SchDoc` - `U3: ESP32-S3-DEVKITC-1-N8R2`).
-   - **10 Canais Analógicos no ADC1 (`GPIO 1` a `GPIO 10`)**: `OilPressure`, `OilTemp`, `FuelPressure`, `Lambda`, `ADC5to3v3_1..4` e `ADC12to3v3_1..2`.
-   - **Periféricos e UI**: RTC `DS3231SN#` via I2C (`GPIO 11/12`), GPS `Neo-8M` via UART (`GPIO 13/47`), CAN/TWAI `SN65HVD230DR` (`GPIO 15/16`), Cartão MicroSD SPI/SDMMC 4-bit (`GPIO 14, 17, 18, 21, 40, 41`), Botões `Free_SW1/SW2` (`GPIO 35/36`) e LEDs `LED_Acquiring/Working` (`GPIO 37/39`).
-3. **Módulo de Comunicação CAN (`components/can_bus` - `Communication.SchDoc`)**:
-   - Configurado para o transceptor **`SN65HVD230DR` (`U2`)** nos pinos `PIN_CAN_TX` (`GPIO 15`) e `PIN_CAN_RX` (`GPIO 16`) com baudrate padrão de **500 kbps**.
-   - Suporte completo a frames **Standard (11-bit)** e **Extended (29-bit)**, validação de DLC (`0..8`), enfileiramento direto na fila do FreeRTOS (`receive_to_queue`) e recuperação automática de **Bus-Off** (`check_and_recover_bus`).
-
----
-
-## Como Rodar os Testes Unitários (TDD no PC)
+## Como Executar os Testes SIL (TDD no PC)
 
 Na raiz do projeto, execute no PowerShell:
 
@@ -87,10 +83,10 @@ Na raiz do projeto, execute no PowerShell:
 .\run_tests.ps1
 ```
 
-Para filtrar apenas os testes do módulo CAN:
+Para executar apenas uma suíte específica (ex: apenas testes do serviço CAN):
 
 ```powershell
-.\build_tests\datalogger_unit_tests.exe --gtest_filter=*CanController*
+.\build_tests\datalogger_unit_tests.exe --gtest_filter=*CanService*
 ```
 
 ---

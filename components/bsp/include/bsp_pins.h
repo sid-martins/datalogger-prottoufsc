@@ -1,12 +1,12 @@
 #pragma once
 
 /**
- * @file board_pins.h
- * @brief Mapeamento oficial de Portas/GPIOs e Tags do Datalogger (ESP32-S3-DEVKITC-1-N8R2)
- *        gerado a partir do esquemático elétrico (Main.SchDoc / CPU.SchDoc).
+ * @file bsp_pins.h
+ * @brief BSP (Board Support Package) - Pinning Table oficial da PCB do Datalogger
+ *        (ESP32-S3-DEVKITC-1-N8R2) gerada a partir do esquemático elétrico (Main.SchDoc / CPU.SchDoc).
  *
  * ============================================================================
- * RESUMO DO HARDWARE NO ESQUEMÁTICO:
+ * RESUMO DO HARDWARE NO ESQUEMÁTICO (BSP):
  * ============================================================================
  * - MCU: U3 - ESP32-S3-DEVKITC-1-N8R2
  * - Condicionamento Analógico (MCP6022-E/SN - U5, U6, U7, U8, U9):
@@ -142,15 +142,14 @@
 #define PIN_LED_WORKING             GPIO_NUM_39   // J3_9  | MTCK/GPIO39 | LED Verde D3 (R17 1k para GND, ativo em nível ALTO)
 #define TAG_LED_WORKING             "LED_Working"
 
-// Alias de compatibilidade para o LED principal de status
 #define PIN_STATUS_LED              PIN_LED_WORKING
 #define TAG_STATUS_LED              TAG_LED_WORKING
 
 // ============================================================================
-// 9. ESTRUTURA E TABELA DE MAPEAMENTO (Pino <-> Tag) PARA USO NO CÓDIGO
+// 9. ESTRUTURA E TABELA DE MAPEAMENTO (Pinning Table BSP)
 // ============================================================================
 #ifdef __cplusplus
-namespace datalogger::board {
+namespace datalogger::bsp {
 
 enum class PinDirection {
     kInput,
@@ -167,8 +166,7 @@ struct PinDescriptor {
 };
 
 /**
- * @brief Tabela apenas com os 10 canais analógicos (ADC1) na ordem do esquemático.
- * Ideal para iterar nas leituras do ADC e gerar o cabeçalho do CSV automaticamente.
+ * @brief Tabela com os 10 canais analógicos (ADC1) na ordem do esquemático.
  */
 inline constexpr PinDescriptor kAnalogChannels[] = {
     {PIN_ADC_OIL_PRESSURE,  TAG_ADC_OIL_PRESSURE,  PinDirection::kAnalogInput, "Pressao de Oleo do Motor (ADC1_CH0)"},
@@ -184,7 +182,7 @@ inline constexpr PinDescriptor kAnalogChannels[] = {
 };
 
 /**
- * @brief Tabela completa de todos os IOs utilizados no esquemático do Datalogger.
+ * @brief Pinning Table completa de todos os 26 IOs utilizados no esquemático do Datalogger.
  */
 inline constexpr PinDescriptor kBoardPinMap[] = {
     // Entradas Analógicas do Motor
@@ -230,5 +228,6 @@ inline constexpr PinDescriptor kBoardPinMap[] = {
     {PIN_LED_WORKING,       TAG_LED_WORKING,       PinDirection::kOutput,      "LED Verde Working (D3)"}
 };
 
-} // namespace datalogger::board
+} // namespace datalogger::bsp
 #endif
+

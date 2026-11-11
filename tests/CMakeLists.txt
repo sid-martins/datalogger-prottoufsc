@@ -1,15 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
-project(datalogger_tests LANGUAGES C CXX)
+project(datalogger_sil_tests LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# No Windows, evita sobrescrever as flags de runtime (/MD vs /MT) do projeto pai
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-# Se o GoogleTest já estiver presente localmente em tests/external/googletest,
-# usa a cópia local (funcionando 100% offline); caso contrário, baixa via FetchContent.
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/googletest/CMakeLists.txt")
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/googletest" "${CMAKE_CURRENT_BINARY_DIR}/googletest" EXCLUDE_FROM_ALL)
 else()
@@ -24,42 +21,42 @@ endif()
 
 enable_testing()
 
-# Diretórios dos componentes que serão testados no Host
 set(COMPONENTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../components")
 
-# Biblioteca reunindo os módulos do Datalogger (RingBuffer + CAN Bus)
-add_library(datalogger_core_lib STATIC
-    "${COMPONENTS_DIR}/ring_buffer/src/ring_buffer.cpp"
-    "${COMPONENTS_DIR}/can_bus/src/can_controller.cpp"
-    "${COMPONENTS_DIR}/can_bus/src/esp32_twai_driver.cpp"
+# Biblioteca reunindo as camadas Motorsport (BSP + OSAL + HAL + LLD + BSW)
+add_library(datalogger_bsw_lib STATIC
+    "${COMPONENTS_DIR}/bsw/src/ring_buffer.cpp"
+    "${COMPONENTS_DIR}/bsw/src/can_service.cpp"
+    "${COMPONENTS_DIR}/lld/src/can_twai_lld.cpp"
 )
 
-target_include_directories(datalogger_core_lib PUBLIC
-    "${COMPONENTS_DIR}/board_config/include"
-    "${COMPONENTS_DIR}/hal_interfaces/include"
-    "${COMPONENTS_DIR}/ring_buffer/include"
-    "${COMPONENTS_DIR}/can_bus/include"
+target_include_directories(datalogger_bsw_lib PUBLIC
+    "${COMPONENTS_DIR}/bsp/include"
+    "${COMPONENTS_DIR}/osal/include"
+    "${COMPONENTS_DIR}/hal/include"
+    "${COMPONENTS_DIR}/lld/include"
+    "${COMPONENTS_DIR}/bsw/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/esp_idf_stubs/include"
 )
 
-target_compile_options(datalogger_core_lib PRIVATE
+target_compile_options(datalogger_bsw_lib PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
 )
 
-# Executável de testes unitários (Google Test + Google Mock)
+# Executável de testes SIL (Software-in-the-Loop) com Google Test + Google Mock
 add_executable(datalogger_unit_tests
-    test_board_pins.cpp
+    test_bsp_pins.cpp
     test_ring_buffer.cpp
-    test_can_controller.cpp
+    test_can_service.cpp
 )
 
 target_include_directories(datalogger_unit_tests PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/mocks"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sil_mocks"
     "${CMAKE_CURRENT_SOURCE_DIR}/esp_idf_stubs/include"
 )
 
 target_link_libraries(datalogger_unit_tests PRIVATE
-    datalogger_core_lib
+    datalogger_bsw_lib
     GTest::gtest_main
     GTest::gmock
 )

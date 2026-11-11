@@ -1,17 +1,17 @@
 #pragma once
 
-#include "i_can_driver.hpp"
+#include "i_can_hal.hpp"
 
-namespace datalogger::can {
+namespace datalogger::lld {
 
 /**
- * @brief Implementação concreta do driver CAN usando o periférico TWAI do ESP32-S3
- * conectado ao transceptor SN65HVD230DR (Communication.SchDoc - U2: TX=GPIO 15, RX=GPIO 16).
+ * @brief LLD (Low-Level Driver / MCAL) do periférico TWAI do ESP32-S3
+ * conectado ao transceptor físico SN65HVD230DR (Communication.SchDoc - U2: TX=GPIO 15, RX=GPIO 16).
  */
-class Esp32TwaiDriver : public hal::ICanDriver {
+class CanTwaiLld : public hal::ICanHal {
 public:
-    Esp32TwaiDriver() = default;
-    ~Esp32TwaiDriver() override;
+    CanTwaiLld() = default;
+    ~CanTwaiLld() override;
 
     bool init(const hal::CanConfig& config) override;
     bool start() override;
@@ -25,5 +25,5 @@ private:
     bool installed_{false};
 };
 
-} // namespace datalogger::can
+} // namespace datalogger::lld
 

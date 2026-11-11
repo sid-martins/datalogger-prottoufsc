@@ -2,7 +2,7 @@
 
 #include <array>
 #include <cstdint>
-#include "board_pins.h"
+#include "bsp_pins.h"
 
 namespace datalogger::hal {
 
@@ -19,8 +19,8 @@ enum class CanBaudRate : uint32_t {
  * @brief Modos de operação do controlador CAN / transceptor SN65HVD230DR.
  */
 enum class CanOperatingMode {
-    kNormal,      // Operação normal (envia e recebe com ACK)
-    kListenOnly,  // Modo passivo/sniffer (apenas escuta sem enviar ACK no barramento)
+    kNormal,      // Operação ativa no barramento (TX + RX com ACK)
+    kListenOnly,  // Modo passivo/telemetria (apenas escuta sem enviar ACK)
     kNoAck        // Modo loopback/autoteste sem exigir ACK externo
 };
 
@@ -35,12 +35,12 @@ enum class CanBusState {
 };
 
 /**
- * @brief Configuração de inicialização do barramento CAN (mapeado por padrão nos pinos do esquemático).
+ * @brief Configuração de inicialização do barramento CAN (mapeado por padrão na Pinning Table do BSP).
  */
 struct CanConfig {
     gpio_num_t tx_pin{PIN_CAN_TX};                       // GPIO 15 (CAN_TX -> Pino D do SN65HVD230DR)
     gpio_num_t rx_pin{PIN_CAN_RX};                       // GPIO 16 (CAN_RX <- Pino R do SN65HVD230DR)
-    CanBaudRate baud_rate{CanBaudRate::k500Kbps};        // Padrão 500 kbps (Automotivo / ECUs / OBD2)
+    CanBaudRate baud_rate{CanBaudRate::k500Kbps};        // Padrão 500 kbps (Motorsport / ECUs / OBD2)
     CanOperatingMode mode{CanOperatingMode::kNormal};
     uint32_t tx_queue_len{16};
     uint32_t rx_queue_len{64};
@@ -63,49 +63,20 @@ struct CanFrame {
 };
 
 /**
- * @brief Interface de Abstração de Hardware (HAL) para o controlador CAN (ESP32-S3 TWAI + SN65HVD230DR).
+ * @brief HAL (Hardware Abstraction Layer) para o controlador CAN.
+ * Conecta a camada de serviço (BSW CanService) ao Low-Level Driver (LLD CanTwaiLld)
+ * ou ao Mock de simulação SIL (MockCanHal).
  */
-class ICanDriver {
+class ICanHal {
 public:
-    virtual ~ICanDriver() = default;
+    virtual ~ICanHal() = default;
 
-    /**
-     * @brief Instala o driver TWAI e configura os pinos TX/RX e timing (baudrate).
-     */
     virtual bool init(const CanConfig& config) = 0;
-
-    /**
-     * @brief Inicia o controlador CAN no barramento.
-     */
     virtual bool start() = 0;
-
-    /**
-     * @brief Para o controlador CAN.
-     */
     virtual bool stop() = 0;
-
-    /**
-     * @brief Transmite um frame CAN no barramento.
-     * @param frame Frame a ser transmitido.
-     * @param timeout_ms Tempo máximo de espera na fila de TX.
-     */
     virtual bool transmit(const CanFrame& frame, uint32_t timeout_ms) = 0;
-
-    /**
-     * @brief Recebe um frame CAN do barramento.
-     * @param[out] out_frame Estrutura que receberá o frame lido.
-     * @param timeout_ms Tempo máximo de espera na fila de RX.
-     */
     virtual bool receive(CanFrame& out_frame, uint32_t timeout_ms) = 0;
-
-    /**
-     * @brief Consulta o estado atual do controlador CAN (Running, Bus-Off, etc.).
-     */
     virtual CanBusState get_state() const = 0;
-
-    /**
-     * @brief Inicia o processo de recuperação caso o controlador entre em estado Bus-Off.
-     */
     virtual bool initiate_recovery() = 0;
 };
 

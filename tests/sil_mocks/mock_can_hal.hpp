@@ -1,11 +1,11 @@
 #pragma once
 
 #include <gmock/gmock.h>
-#include "i_can_driver.hpp"
+#include "i_can_hal.hpp"
 
-namespace datalogger::testing {
+namespace datalogger::sil {
 
-class MockCanDriver : public hal::ICanDriver {
+class MockCanHal : public hal::ICanHal {
 public:
     MOCK_METHOD(bool, init, (const hal::CanConfig& config), (override));
     MOCK_METHOD(bool, start, (), (override));
@@ -16,5 +16,5 @@ public:
     MOCK_METHOD(bool, initiate_recovery, (), (override));
 };
 
-} // namespace datalogger::testing
+} // namespace datalogger::sil
 
