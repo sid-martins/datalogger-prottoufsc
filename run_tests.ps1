@@ -7,16 +7,13 @@ $extraPaths = @(
 
 $wingetRoots = @(
     "$env:LOCALAPPDATA\Microsoft\WinGet\Packages",
-    "$env:USERPROFILE\AppData\Local\Microsoft\WinGet\Packages",
-    "C:\Users\gusta\AppData\Local\Microsoft\WinGet\Packages"
-) | Select-Object -Unique
+    "$env:USERPROFILE\AppData\Local\Microsoft\WinGet\Packages"
+) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
 
 foreach ($root in $wingetRoots) {
-    if (Test-Path $root) {
-        Get-ChildItem -Path $root -Recurse -Depth 3 -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -in @("g++.exe", "ninja.exe") } |
-            ForEach-Object { $extraPaths += $_.DirectoryName }
-    }
+    Get-ChildItem -Path $root -Recurse -Depth 3 -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -in @("g++.exe", "ninja.exe") } |
+        ForEach-Object { $extraPaths += $_.DirectoryName }
 }
 
 foreach ($p in ($extraPaths | Select-Object -Unique)) {

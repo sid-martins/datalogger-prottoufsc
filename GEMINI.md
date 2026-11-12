@@ -6,9 +6,10 @@ Este arquivo (`GEMINI.md`) funciona como a memória persistente e guia arquitetu
 
 ## 1. Visão Geral do Projeto
 - **Produto:** Firmware de um Datalogger Automotivo / Motorsport baseado no microcontrolador **ESP32-S3** (`ESP32-S3-DEVKITC-1-N8R2`).
+- **Repositório Remoto (GitHub):** `git@github.com:sid-martins/datalogger-prottoufsc.git`
 - **Framework Principal:** **ESP-IDF nativo** com **FreeRTOS (Dual-Core)** e **C++17**.
 - **Arquitetura de Software:** Camadas no padrão **Motorsport / AUTOSAR / Aeroespacial** (`BSP`, `OSAL`, `HAL`, `LLD`, `BSW`, `ASW` e `SIL`).
-- **Metodologia de Desenvolvimento:** **TDD (Test-Driven Development)** com testes **SIL (Software-in-the-Loop)** utilizando **Google Test (`gtest` + `gmock` v1.14.0)** compilados e executados localmente no Host (Windows x64) via CMake + Ninja + LLVM-MinGW (`Clang/G++ 23.1.4`).
+- **Metodologia de Desenvolvimento:** **TDD (Test-Driven Development)** com testes **SIL (Software-in-the-Loop)** utilizando **Google Test (`gtest` + `gmock` v1.14.0)** compilados e executados localmente no Host via CMake + Ninja + GCC/Clang.
 
 ---
 
@@ -65,17 +66,17 @@ Este arquivo (`GEMINI.md`) funciona como a memória persistente e guia arquitetu
 
 ---
 
-## 3. Fluxo Obrigatório de TDD (Red -> Green -> Refactor)
+## 3. Fluxo Obrigatório de TDD e Git
 
-Ao criar ou alterar qualquer funcionalidade do Datalogger:
-1. Defina ou atualize o contrato em `components/hal/` ou `components/osal/` (se necessário) e o mock correspondente em `tests/sil_mocks/`.
-2. Escreva primeiro o teste SIL/unitário em `tests/`.
-3. Execute `.\run_tests.ps1` para validar o teste no Host.
-4. Implemente o serviço em `components/bsw/` e o driver de silício em `components/lld/` mantendo **0 warnings** (`-Wall -Wextra -Wpedantic`).
-5. Caso adicione um novo componente em `components/`, registre-o em:
-   - `main/CMakeLists.txt` (`REQUIRES`)
-   - `tests/CMakeLists.txt` (`add_library` / `target_include_directories`)
-   - `.vscode/c_cpp_properties.json` e `.clangd`
+1. **Ciclo Red -> Green -> Refactor:**
+   - Defina ou atualize o contrato em `components/hal/` ou `components/osal/` (se necessário) e o mock correspondente em `tests/sil_mocks/`.
+   - Escreva primeiro o teste SIL/unitário em `tests/`.
+   - Execute `.\run_tests.ps1` para validar o teste no Host.
+   - Implemente o serviço em `components/bsw/` e o driver de silício em `components/lld/` mantendo **0 warnings** (`-Wall -Wextra -Wpedantic`).
+2. **Registro de Novos Componentes:**
+   - Caso adicione um novo componente em `components/`, registre-o em `main/CMakeLists.txt`, `tests/CMakeLists.txt`, `.vscode/c_cpp_properties.json` e `.clangd`.
+3. **Portabilidade e Repositório Remoto:**
+   - **Nunca** insira caminhos absolutos locais da máquina (ex: `C:\Users\...` ou `file:///c:/Users/...`) em arquivos versionados no Git (`README.md`, `GEMINI.md`, `CMakeLists.txt`, scripts `.ps1`). Use sempre caminhos relativos ao repositório ou variáveis de ambiente (`$env:USERPROFILE`, `${CMAKE_CURRENT_SOURCE_DIR}`).
 
 ---
 
@@ -116,13 +117,13 @@ Ao criar ou alterar qualquer funcionalidade do Datalogger:
 
 ## 5. Comandos Úteis do Ambiente
 
-- **Executar todos os testes SIL / Unitários no Windows (Host):**
+- **Executar todos os testes SIL / Unitários no Host:**
   ```powershell
   .\run_tests.ps1
   ```
 - **Verificar sintaxe do `main/main.cpp` (ASW) com os stubs do ESP-IDF:**
   ```powershell
-  & "C:\Users\gusta\AppData\Local\Microsoft\WinGet\Packages\MartinStorsjo.LLVM-MinGW.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\llvm-mingw-20261020-ucrt-x86_64\bin\g++.exe" -fsyntax-only -std=c++17 -Wall -Wextra -Imain -Icomponents/bsp/include -Icomponents/osal/include -Icomponents/hal/include -Icomponents/lld/include -Icomponents/bsw/include -Itests/esp_idf_stubs/include main/main.cpp
+  g++ -fsyntax-only -std=c++17 -Wall -Wextra -Imain -Icomponents/bsp/include -Icomponents/osal/include -Icomponents/hal/include -Icomponents/lld/include -Icomponents/bsw/include -Itests/esp_idf_stubs/include main/main.cpp
   ```
 - **Compilar e gravar no ESP32-S3 (via terminal ESP-IDF):**
   ```powershell
@@ -134,8 +135,8 @@ Ao criar ou alterar qualquer funcionalidade do Datalogger:
 ---
 
 ## 6. Estado Atual do Projeto (Histórico de Progresso)
-- [x] Estrutura base do projeto ESP-IDF (`main/`, `components/`, `sdkconfig.defaults`, `partitions.csv`).
-- [x] Ambiente de testes SIL no Host Windows configurado com CMake, Ninja, LLVM-MinGW e Google Test v1.14.0 (`tests/` e `run_tests.ps1`).
+- [x] Estrutura base do projeto ESP-IDF (`main/`, `components/`, `sdkconfig.defaults`, `partitions.csv`) e versionamento conectado ao repositório remoto `git@github.com:sid-martins/datalogger-prottoufsc.git`.
+- [x] Ambiente de testes SIL no Host configurado com CMake, Ninja, LLVM-MinGW e Google Test v1.14.0 (`tests/` e `run_tests.ps1`).
 - [x] Reestruturação completa para nomenclatura e arquitetura em camadas **Motorsport** (`bsp`, `osal`, `hal`, `lld`, `bsw`, `asw` e `sil_mocks`).
 - [x] **BSP (`components/bsp/include/bsp_pins.h`):** Pinning Table com os 26 sinais reais do esquemático elétrico validada via TDD (`test_bsp_pins.cpp`).
 - [x] **OSAL (`components/osal/`):** Interface `IOsalQueue<T>`, adaptador real `FreeRtosQueueAdapter<T>` e dublê SIL `FakeOsalQueue<T>`.

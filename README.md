@@ -1,6 +1,8 @@
-# Datalogger ESP32-S3 — Arquitetura Motorsport (ESP-IDF + FreeRTOS + SIL TDD)
+# Datalogger ESP32-S3 — Protto UFSC (Arquitetura Motorsport)
 
 Firmware embarcado para **Datalogger Automotivo / Motorsport** baseado no **ESP32-S3 (`ESP32-S3-DEVKITC-1-N8R2`)**, desenvolvido em **C++17** sobre o **ESP-IDF nativo** e **FreeRTOS (Dual-Core)**, seguindo a arquitetura em camadas da indústria de **Motorsport / AUTOSAR** (`BSP`, `OSAL`, `HAL`, `LLD`, `BSW`, `ASW`) e validação **SIL (*Software-in-the-Loop*)** com **Google Test & Google Mock**.
+
+- **Repositório Oficial:** `git@github.com:sid-martins/datalogger-prottoufsc.git`
 
 ---
 
@@ -8,20 +10,20 @@ Firmware embarcado para **Datalogger Automotivo / Motorsport** baseado no **ESP3
 
 | Camada | Diretório / Namespace | Papel na Engenharia |
 | :--- | :--- | :--- |
-| **BSP** (*Board Support Package*) | `components/bsp/` (`datalogger::bsp`) | *Pinning Table* da placa física ([bsp_pins.h](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/bsp/include/bsp_pins.h)): mapeia os 26 sinais do esquemático (`PIN_*` e `TAG_*`). |
-| **OSAL** (*OS Abstraction Layer*) | `components/osal/` (`datalogger::osal`) | Abstrai o sistema operacional de tempo real ([i_osal_queue.hpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/osal/include/i_osal_queue.hpp) e [freertos_queue_adapter.hpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/osal/include/freertos_queue_adapter.hpp)). |
-| **HAL** (*Hardware Abstraction Layer*) | `components/hal/` (`datalogger::hal`) | Contratos puramente virtuais e tipos de fronteira ([i_can_hal.hpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/hal/include/i_can_hal.hpp), [i_storage_hal.hpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/hal/include/i_storage_hal.hpp)). |
-| **LLD** (*Low-Level Drivers / MCAL*) | `components/lld/` (`datalogger::lld`) | Drivers específicos do silício ESP32-S3 e CIs da placa ([can_twai_lld.cpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/lld/src/can_twai_lld.cpp) para o transceptor `SN65HVD230DR`). |
-| **BSW** (*Basic Software Services*) | `components/bsw/` (`datalogger::bsw`) | Serviços de comunicação, diagnóstico, validação e buffers estáticos sem heap ([can_service.cpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/bsw/src/can_service.cpp), [ring_buffer.hpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/components/bsw/include/ring_buffer.hpp)). |
-| **ASW** (*Application Software*) | `main/` ([main.cpp](file:///c:/Users/gusta/OneDrive/Documentos/datalogger/main/main.cpp)) | Aplicação final e orquestração das Tasks Dual-Core no ESP32-S3 (Core 1 para aquisição em tempo real; Core 0 para log/armazenamento). |
-| **SIL** (*Software-in-the-Loop*) | `tests/` (`datalogger::sil`) | Suíte de testes automatizados e dublês de hardware (`tests/sil_mocks/`) executados no PC via Google Test. |
+| **BSP** (*Board Support Package*) | [`components/bsp/`](components/bsp) (`datalogger::bsp`) | *Pinning Table* da placa física ([`bsp_pins.h`](components/bsp/include/bsp_pins.h)): mapeia os 26 sinais do esquemático (`PIN_*` e `TAG_*`). |
+| **OSAL** (*OS Abstraction Layer*) | [`components/osal/`](components/osal) (`datalogger::osal`) | Abstrai o sistema operacional de tempo real ([`i_osal_queue.hpp`](components/osal/include/i_osal_queue.hpp) e [`freertos_queue_adapter.hpp`](components/osal/include/freertos_queue_adapter.hpp)). |
+| **HAL** (*Hardware Abstraction Layer*) | [`components/hal/`](components/hal) (`datalogger::hal`) | Contratos puramente virtuais e tipos de fronteira ([`i_can_hal.hpp`](components/hal/include/i_can_hal.hpp), [`i_storage_hal.hpp`](components/hal/include/i_storage_hal.hpp)). |
+| **LLD** (*Low-Level Drivers / MCAL*) | [`components/lld/`](components/lld) (`datalogger::lld`) | Drivers específicos do silício ESP32-S3 e CIs da placa ([`can_twai_lld.cpp`](components/lld/src/can_twai_lld.cpp) para o transceptor `SN65HVD230DR`). |
+| **BSW** (*Basic Software Services*) | [`components/bsw/`](components/bsw) (`datalogger::bsw`) | Serviços de comunicação, diagnóstico, validação e buffers estáticos sem heap ([`can_service.cpp`](components/bsw/src/can_service.cpp), [`ring_buffer.hpp`](components/bsw/include/ring_buffer.hpp)). |
+| **ASW** (*Application Software*) | [`main/`](main) ([`main.cpp`](main/main.cpp)) | Aplicação final e orquestração das Tasks Dual-Core no ESP32-S3 (Core 1 para aquisição em tempo real; Core 0 para log/armazenamento). |
+| **SIL** (*Software-in-the-Loop*) | [`tests/`](tests) (`datalogger::sil`) | Suíte de testes automatizados e dublês de hardware ([`tests/sil_mocks/`](tests/sil_mocks)) executados no PC via Google Test. |
 
 ---
 
 ## Estrutura de Pastas do Projeto
 
 ```text
-datalogger/
+datalogger-prottoufsc/
 ├── CMakeLists.txt                  # CMake híbrido: Firmware ESP-IDF (via idf.py) ou Testes SIL no Host
 ├── GEMINI.md                       # Contexto e regras arquiteturais para o Agente IA (equivalente ao CLAUDE.md)
 ├── README.md                       # Documentação geral do projeto
@@ -29,9 +31,6 @@ datalogger/
 ├── partitions.csv                  # Tabela de partições customizada (NVS, Factory App, Storage FAT)
 ├── run_tests.ps1                   # Script PowerShell para compilar e rodar a suíte SIL no Windows
 ├── .clangd                         # Flags de compilação para o servidor Clangd
-├── .vscode/
-│   ├── c_cpp_properties.json       # Configuração do IntelliSense (ESP32-S3 + SIL Host TDD)
-│   └── settings.json               # Associações de arquivos C/C++ no VS Code
 ├── main/                           # [ASW] Camada de Aplicação
 │   ├── CMakeLists.txt
 │   └── main.cpp                    # Entrypoint app_main() + Tasks Dual-Core (can_rx_task e can_logger_task)
@@ -65,7 +64,7 @@ datalogger/
 │           ├── can_service.cpp
 │           └── ring_buffer.cpp
 └── tests/                          # [SIL] Ambiente de Testes Software-in-the-Loop (Host PC)
-    ├── CMakeLists.txt              # Build isolado SIL + GoogleTest v1.14.0
+    ├── CMakeLists.txt              # Build isolado SIL + GoogleTest v1.14.0 (FetchContent automático)
     ├── esp_idf_stubs/              # Headers stub do ESP-IDF/FreeRTOS para compilação Host e IntelliSense
     ├── sil_mocks/                  # Mocks e Fakes para simulação SIL (MockCanHal, MockStorageHal, FakeOsalQueue)
     ├── test_bsp_pins.cpp           # Valida os 26 pinos e tags da Pinning Table do esquemático
@@ -75,11 +74,14 @@ datalogger/
 
 ---
 
-## Como Executar os Testes SIL (TDD no PC)
-
-Na raiz do projeto, execute no PowerShell:
+## Como Clonar e Executar os Testes SIL (TDD no PC)
 
 ```powershell
+# 1. Clonar o repositório
+git clone git@github.com:sid-martins/datalogger-prottoufsc.git
+cd datalogger-prottoufsc
+
+# 2. Compilar e rodar todos os testes SIL (Google Test)
 .\run_tests.ps1
 ```
 
