@@ -68,9 +68,9 @@ ASW (main/main.cpp) ──► BSW (components/bsw/) ──► HAL (components/ha
 
 ## 6. Estado Atual (Resumo)
 - [x] **Fase 0:** Base ESP-IDF, SIL (CMake/Ninja/GTest), Arquitetura Motorsport, `.agents/rules/`, `.agents/skills/orchestrator/` e `docs/`.
-- [x] **Fase 0/BSP:** `bsp_pins.h` (26 sinais do esquemático) validado com TDD.
-- [x] **Fase 1 (Base):** `CanService` + `CanTwaiLld` (`SN65HVD230DR` @ 500 kbps, 11/29-bit, auto-recovery Bus-Off) — 18 testes SIL passando.
-- [x] **Fase 2:** Especificações e requisitos FSAE consolidados em `docs/REQUIREMENTS.md` e fases detalhadas em `docs/ROADMAP.md`.
-- [ ] **Fase 3 (Atual):** Aquisição Analógica ADC1 (10 canais `bsp::kAnalogChannels`, filtro digital passa-baixa, calibração e taxas por canal via TDD).
+- [x] **Fase 0/BSP:** `bsp_pins.h` (26 sinais do esquemático da placa central) validado com TDD.
+- [x] **Fase 1 (Base CAN):** `CanService` + `CanTwaiLld` (`SN65HVD230DR` @ 500 kbps, 11/29-bit, auto-recovery Bus-Off) — 18 testes SIL passando.
+- [x] **Fase 2:** Topologia CAN distribuída (Central ESP32-S3 + 6 Nós ESP32-C3 [4x Rodas, Freio/Dir, IMU WIT] + ECU) documentada em `docs/REQUIREMENTS.md` e `docs/ROADMAP.md`.
+- [ ] **Fase 3 (Atual):** Estratégia de Aquisição CAN — Protocolo/Mapa de IDs, decodificador dos nós `ESP32-C3` + ECU (motor e marcha) e tabela `VehicleCanState` com detecção de timeout via TDD.
 
 > **Regra:** Sempre que concluir uma etapa, atualize `docs/ROADMAP.md` e a seção **6** deste arquivo (mantendo `GEMINI.md` <= 200 linhas e sem caminhos locais da máquina).
