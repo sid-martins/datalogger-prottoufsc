@@ -28,7 +28,16 @@ add_library(datalogger_bsw_lib STATIC
     "${COMPONENTS_DIR}/bsw/src/ring_buffer.cpp"
     "${COMPONENTS_DIR}/bsw/src/can_service.cpp"
     "${COMPONENTS_DIR}/bsw/src/can_decoder_service.cpp"
+    "${COMPONENTS_DIR}/bsw/src/adc_service.cpp"
+    "${COMPONENTS_DIR}/bsw/src/rtc_service.cpp"
+    "${COMPONENTS_DIR}/bsw/src/gps_service.cpp"
+    "${COMPONENTS_DIR}/bsw/src/telemetry_aggregator.cpp"
+    "${COMPONENTS_DIR}/bsw/src/logger_service.cpp"
     "${COMPONENTS_DIR}/lld/src/can_twai_lld.cpp"
+    "${COMPONENTS_DIR}/lld/src/adc_oneshot_lld.cpp"
+    "${COMPONENTS_DIR}/lld/src/ds3231_i2c_lld.cpp"
+    "${COMPONENTS_DIR}/lld/src/neo8m_uart_lld.cpp"
+    "${COMPONENTS_DIR}/lld/src/sd_card_lld.cpp"
 )
 
 target_include_directories(datalogger_bsw_lib PUBLIC
@@ -50,6 +59,10 @@ add_executable(datalogger_unit_tests
     test_ring_buffer.cpp
     test_can_service.cpp
     test_can_decoder_service.cpp
+    test_adc_service.cpp
+    test_rtc_service.cpp
+    test_gps_service.cpp
+    test_logger_service.cpp
 )
 
 target_include_directories(datalogger_unit_tests PRIVATE

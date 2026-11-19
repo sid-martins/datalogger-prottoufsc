@@ -12,7 +12,11 @@ inline QueueHandle_t xQueueCreate(const UBaseType_t uxQueueLength,
                                   const UBaseType_t uxItemSize) {
     (void)uxQueueLength;
     (void)uxItemSize;
+#ifdef __cplusplus
     return reinterpret_cast<QueueHandle_t>(1);
+#else
+    return (QueueHandle_t)(uintptr_t)1;
+#endif
 }
 
 inline void vQueueDelete(QueueHandle_t xQueue) { (void)xQueue; }

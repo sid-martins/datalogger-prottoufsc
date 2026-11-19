@@ -4,8 +4,18 @@ Firmware embarcado para **Datalogger Automotivo / Motorsport** baseado no **ESP3
 
 - **Repositório Oficial:** `git@github.com:sid-martins/datalogger-prottoufsc.git`
 - **Guia de Protocolo CAN para os Nós `ESP32-C3` e ECU FuelTech:** [`docs/CAN_PROTOCOL.md`](docs/CAN_PROTOCOL.md)
+- **Guia de Protocolo GPS (`Neo-8M` 10 Hz — UBX + NMEA):** [`docs/NEO8M_PROTOCOL.md`](docs/NEO8M_PROTOCOL.md)
+- **Especificação do Formato Binário de Log (`.bin` / `PDLG v1`):** [`docs/BINARY_LOG_FORMAT.md`](docs/BINARY_LOG_FORMAT.md)
 - **Especificações e Requisitos FSAE:** [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
 - **Roadmap de Implementação:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
+
+---
+
+## Estado Atual do Projeto
+
+- **Fases 0 a 7 Concluídas** (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)): BSP (`26` GPIOs), Transporte CAN (`500 kbps`) + Decodificador (`ESP32-C3` + FuelTech), ADC1 (`10` canais com filtro EMA e multi-taxa), **RTC `DS3231SN#` (`I2C 0x68`) com sincronização monotônica de `1 ms` ($\le 50\ \text{ms}$)**, **GPS `Neo-8M` a `10 Hz` (`UART1 115200 baud`, UBX + NMEA zero-heap)** e **Orquestração Dual-Core (`Core 1` $\rightarrow$ `Core 0`) + Logger Binário `.bin` (`PDLG v1`, `256 B/registro`, *Sync Word* + `CRC-32`, bloco `4 KB`) no MicroSD `J4`**.
+- **Próximo Passo (Fase 8):** Interface de Pista (botões `Free_SW1`/`Free_SW2`, LEDs `LED_Acquiring`/`LED_Working`) e Máquina de Estados ASW.
+- **Suíte SIL (Host):** **`93` testes automatizados passando** (`Google Test + Google Mock v1.14.0`, `0 warnings` com `-Wall -Wextra -Wpedantic`).
 
 ---
 
@@ -34,11 +44,11 @@ Para o guia completo de bytes, escalas e código C++ de exemplo para gravar nos 
 | :--- | :--- | :--- |
 | **BSP** (*Board Support Package*) | [`components/bsp/`](components/bsp) (`datalogger::bsp`) | *Pinning Table* da placa física ([`bsp_pins.h`](components/bsp/include/bsp_pins.h)): mapeia os 26 sinais do esquemático (`PIN_*` e `TAG_*`). |
 | **OSAL** (*OS Abstraction Layer*) | [`components/osal/`](components/osal) (`datalogger::osal`) | Abstrai o sistema operacional de tempo real ([`i_osal_queue.hpp`](components/osal/include/i_osal_queue.hpp) e [`freertos_queue_adapter.hpp`](components/osal/include/freertos_queue_adapter.hpp)). |
-| **HAL** (*Hardware Abstraction Layer*) | [`components/hal/`](components/hal) (`datalogger::hal`) | Contratos puramente virtuais e tipos de fronteira ([`i_can_hal.hpp`](components/hal/include/i_can_hal.hpp), [`i_storage_hal.hpp`](components/hal/include/i_storage_hal.hpp)). |
-| **LLD** (*Low-Level Drivers / MCAL*) | [`components/lld/`](components/lld) (`datalogger::lld`) | Drivers específicos do silício ESP32-S3 e CIs da placa ([`can_twai_lld.cpp`](components/lld/src/can_twai_lld.cpp) para o transceptor `SN65HVD230DR`). |
-| **BSW** (*Basic Software Services*) | [`components/bsw/`](components/bsw) (`datalogger::bsw`) | Serviços de comunicação, diagnóstico, validação e buffers estáticos sem heap ([`can_service.cpp`](components/bsw/src/can_service.cpp), [`ring_buffer.hpp`](components/bsw/include/ring_buffer.hpp)). |
-| **ASW** (*Application Software*) | [`main/`](main) ([`main.cpp`](main/main.cpp)) | Aplicação final e orquestração das Tasks Dual-Core no ESP32-S3 (Core 1 para aquisição em tempo real; Core 0 para log/armazenamento). |
-| **SIL** (*Software-in-the-Loop*) | [`tests/`](tests) (`datalogger::sil`) | Suíte de testes automatizados e dublês de hardware ([`tests/sil_mocks/`](tests/sil_mocks)) executados no PC via Google Test. |
+| **HAL** (*Hardware Abstraction Layer*) | [`components/hal/`](components/hal) (`datalogger::hal`) | Contratos puramente virtuais e tipos de fronteira ([`i_can_hal.hpp`](components/hal/include/i_can_hal.hpp), [`i_adc_hal.hpp`](components/hal/include/i_adc_hal.hpp), [`i_rtc_hal.hpp`](components/hal/include/i_rtc_hal.hpp), [`i_gps_hal.hpp`](components/hal/include/i_gps_hal.hpp), [`i_storage_hal.hpp`](components/hal/include/i_storage_hal.hpp)). |
+| **LLD** (*Low-Level Drivers / MCAL*) | [`components/lld/`](components/lld) (`datalogger::lld`) | Drivers específicos do silício ESP32-S3 e CIs da placa ([`can_twai_lld.cpp`](components/lld/src/can_twai_lld.cpp) para `SN65HVD230DR`; [`adc_oneshot_lld.cpp`](components/lld/src/adc_oneshot_lld.cpp) para `ADC1`; [`ds3231_i2c_lld.cpp`](components/lld/src/ds3231_i2c_lld.cpp) para `DS3231SN#`; [`neo8m_uart_lld.cpp`](components/lld/src/neo8m_uart_lld.cpp) para `Neo-8M`; [`sd_card_lld.cpp`](components/lld/src/sd_card_lld.cpp) para MicroSD `J4`). |
+| **BSW** (*Basic Software Services*) | [`components/bsw/`](components/bsw) (`datalogger::bsw`) | Serviços de comunicação, aquisição, tempo, GPS, agregação e gravação binária `PDLG v1` sem heap ([`can_service.cpp`](components/bsw/src/can_service.cpp), [`can_decoder_service.cpp`](components/bsw/src/can_decoder_service.cpp), [`adc_service.cpp`](components/bsw/src/adc_service.cpp), [`rtc_service.cpp`](components/bsw/src/rtc_service.cpp), [`gps_service.cpp`](components/bsw/src/gps_service.cpp), [`telemetry_aggregator.cpp`](components/bsw/src/telemetry_aggregator.cpp), [`logger_service.cpp`](components/bsw/src/logger_service.cpp), [`ring_buffer.hpp`](components/bsw/include/ring_buffer.hpp)). |
+| **ASW** (*Application Software*) | [`main/`](main) ([`main.cpp`](main/main.cpp)) | Aplicação final e orquestração das Tasks Dual-Core no ESP32-S3 (Core 1: `can_rx_task` + `acquisition_task` 100 Hz; Core 0: `storage_logger_task`). |
+| **SIL** (*Software-in-the-Loop*) | [`tests/`](tests) (`datalogger::sil`) | Suíte com `93` testes automatizados e dublês de hardware ([`tests/sil_mocks/`](tests/sil_mocks)) executados no PC via Google Test. |
 
 ---
 
@@ -53,9 +63,15 @@ datalogger-prottoufsc/
 ├── partitions.csv                  # Tabela de partições customizada (NVS, Factory App, Storage FAT)
 ├── run_tests.ps1                   # Script PowerShell para compilar e rodar a suíte SIL no Windows
 ├── .clangd                         # Flags de compilação para o servidor Clangd
+├── docs/                           # Especificações técnicas, protocolos e roadmap
+│   ├── BINARY_LOG_FORMAT.md        # Especificação byte a byte do log binário .bin (PDLG v1)
+│   ├── CAN_PROTOCOL.md             # Tabela oficial de IDs CAN (ESP32-C3 + FuelTech)
+│   ├── NEO8M_PROTOCOL.md           # Referência oficial u-blox NEO-8M (UBX 10 Hz + NMEA)
+│   ├── REQUIREMENTS.md             # Requisitos funcionais e não-funcionais FSAE
+│   └── ROADMAP.md                  # Fases de implementação e progresso
 ├── main/                           # [ASW] Camada de Aplicação
 │   ├── CMakeLists.txt
-│   └── main.cpp                    # Entrypoint app_main() + Tasks Dual-Core (can_rx_task e can_logger_task)
+│   └── main.cpp                    # Entrypoint app_main() + Tasks Dual-Core (Core 1: CAN+Acq 100 Hz / Core 0: Logger SD)
 ├── components/
 │   ├── bsp/                        # [BSP] Board Support Package
 │   │   ├── CMakeLists.txt
@@ -69,29 +85,60 @@ datalogger-prottoufsc/
 │   ├── hal/                        # [HAL] Hardware Abstraction Layer
 │   │   ├── CMakeLists.txt
 │   │   └── include/
+│   │       ├── i_adc_hal.hpp       # Contrato IAdcHal e AdcChannelId (10 canais ADC1)
 │   │       ├── i_can_hal.hpp       # Contrato ICanHal, CanFrame (11/29-bit), CanConfig (500 kbps)
-│   │       └── i_storage_hal.hpp   # Contrato IStorageHal
+│   │       ├── i_gps_hal.hpp       # Contrato IGpsHal, GpsConfig e GpsData (Neo-8M 10 Hz)
+│   │       ├── i_rtc_hal.hpp       # Contrato IRtcHal, RtcI2cConfig e RtcDateTime (DS3231SN#)
+│   │       └── i_storage_hal.hpp   # Contrato IStorageHal e StorageConfig (SDMMC 4-bit / SPI)
 │   ├── lld/                        # [LLD] Low-Level Drivers (ESP32-S3 Silício + Periféricos)
 │   │   ├── CMakeLists.txt
 │   │   ├── include/
-│   │   │   └── can_twai_lld.hpp    # Driver LLD TWAI para o transceptor SN65HVD230DR (GPIO 15/16)
+│   │   │   ├── adc_oneshot_lld.hpp # Driver LLD ADC1 (GPIO 1..10, 12-bit, DB_12)
+│   │   │   ├── can_twai_lld.hpp    # Driver LLD TWAI para o transceptor SN65HVD230DR (GPIO 15/16)
+│   │   │   ├── ds3231_i2c_lld.hpp  # Driver LLD I2C Master para o RTC DS3231SN# (GPIO 11/12, 0x68)
+│   │   │   ├── neo8m_uart_lld.hpp  # Driver LLD UART1 + UBX 10 Hz para o GPS Neo-8M (GPIO 13/47)
+│   │   │   └── sd_card_lld.hpp     # Driver LLD FATFS MicroSD J4 (SDMMC 4-bit / SPI + fsync)
 │   │   └── src/
-│   │       └── can_twai_lld.cpp
+│   │       ├── adc_oneshot_lld.cpp
+│   │       ├── can_twai_lld.cpp
+│   │       ├── ds3231_i2c_lld.cpp
+│   │       ├── neo8m_uart_lld.cpp
+│   │       └── sd_card_lld.cpp
 │   └── bsw/                        # [BSW] Basic Software Services & Static Containers
 │       ├── CMakeLists.txt
 │       ├── include/
+│       │   ├── adc_service.hpp     # Serviço ADC (10 canais, filtro EMA, calibração linear, multi-taxa)
+│       │   ├── binary_log_format.hpp # Constantes do protocolo binário PDLG v1 (256 B/registro + CRC-32)
+│       │   ├── can_decoder_service.hpp # Decodificador CAN (nós ESP32-C3 + FuelTech) e timeout
+│       │   ├── can_protocol.hpp    # IDs CAN oficiais e struct VehicleCanState
 │       │   ├── can_service.hpp     # Serviço CAN (validação, fila OSAL RX, auto-recovery Bus-Off)
-│       │   └── ring_buffer.hpp     # RingBuffer<T, Capacity> estático (sem alocação dinâmica)
+│       │   ├── gps_service.hpp     # Serviço GPS NMEA zero-heap ($xxGGA/$xxRMC, XOR, timestamp RTC)
+│       │   ├── logger_service.hpp  # Serviço Logger binário PDLG v1, bloco 4 KB e fsync periódico
+│       │   ├── ring_buffer.hpp     # RingBuffer<T, Capacity> estático (sem alocação dinâmica)
+│       │   ├── rtc_service.hpp     # Serviço RTC + âncora monotônica 1 ms e fallback degradado
+│       │   ├── telemetry_aggregator.hpp # Agregador Core 1 (RTC + CAN + ADC + GPS -> fila OSAL)
+│       │   └── telemetry_snapshot.hpp   # Snapshot unificado POD sem heap
 │       └── src/
+│           ├── adc_service.cpp
+│           ├── can_decoder_service.cpp
 │           ├── can_service.cpp
-│           └── ring_buffer.cpp
+│           ├── gps_service.cpp
+│           ├── logger_service.cpp
+│           ├── ring_buffer.cpp
+│           ├── rtc_service.cpp
+│           └── telemetry_aggregator.cpp
 └── tests/                          # [SIL] Ambiente de Testes Software-in-the-Loop (Host PC)
     ├── CMakeLists.txt              # Build isolado SIL + GoogleTest v1.14.0 (FetchContent automático)
     ├── esp_idf_stubs/              # Headers stub do ESP-IDF/FreeRTOS para compilação Host e IntelliSense
-    ├── sil_mocks/                  # Mocks e Fakes para simulação SIL (MockCanHal, MockStorageHal, FakeOsalQueue)
+    ├── sil_mocks/                  # Mocks e Fakes SIL (MockAdcHal, MockCanHal, MockGpsHal, MockRtcHal, MockStorageHal, FakeOsalQueue)
+    ├── test_adc_service.cpp        # Valida o bsw::AdcService (10 canais, EMA, calibração, multi-taxa)
     ├── test_bsp_pins.cpp           # Valida os 26 pinos e tags da Pinning Table do esquemático
+    ├── test_can_decoder_service.cpp # Valida decodificação CAN (nós C3 + FuelTech) e timeout
+    ├── test_can_service.cpp        # Valida o bsw::CanService (11/29-bit, 500 kbps, fila OSAL, Bus-Off)
+    ├── test_gps_service.cpp        # Valida o bsw::GpsService e Neo8mUartLld (UBX 10 Hz, NMEA, timestamp)
+    ├── test_logger_service.cpp     # Valida TelemetryAggregator, LoggerService (binário PDLG v1) e SdCardLld
     ├── test_ring_buffer.cpp        # Valida o container estático bsw::RingBuffer
-    └── test_can_service.cpp        # Valida o bsw::CanService (11/29-bit, 500 kbps, fila OSAL, Bus-Off)
+    └── test_rtc_service.cpp        # Valida o bsw::RtcService e Ds3231I2cLld (BCD, OSF, sync 1 ms, fallback)
 ```
 
 ---
@@ -103,7 +150,7 @@ datalogger-prottoufsc/
 git clone git@github.com:sid-martins/datalogger-prottoufsc.git
 cd datalogger-prottoufsc
 
-# 2. Compilar e rodar todos os testes SIL (Google Test)
+# 2. Compilar e rodar todos os 93 testes SIL (Google Test)
 .\run_tests.ps1
 ```
 

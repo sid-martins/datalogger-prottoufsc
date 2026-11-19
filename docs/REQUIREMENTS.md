@@ -60,7 +60,7 @@ O sistema de aquisição de dados (DAQ) da **Protto UFSC Motorsport** utiliza um
   - **RTC `DS3231SN#` (`GPIO 11/12`, I2C `0x68`)** + timer monotônico de `1 ms` (`esp_timer`) para alinhamento temporal ($\le 50\ \text{ms}$) entre pacotes CAN, ADC local e GPS.
   - **GPS `Neo-8M` (`GPIO 13/47`, UART @ `10 Hz`)** para mapa de pista, velocidade no solo (*ground speed*) e correlação aerodinâmica (`RU 5.3`, `RU 6.2`, `RU 7.1`).
 - **Armazenamento e Interface de Pista:**
-  - **Cartão MicroSD `J4` (`GPIO 14, 17, 18, 21, 40, 41`, até `64 GB`)** para gravação de stints de Endurance (`22 km`) em `.csv` compatível com **MoTeC i2 / AiM Race Studio / MegaLogViewer**.
+  - **Cartão MicroSD `J4` (`GPIO 14, 17, 18, 21, 40, 41`, até `64 GB`)** para gravação de stints de Endurance (`22 km`) em formato binário estruturado `.bin` (`PDLG v1`, especificado em [`docs/BINARY_LOG_FORMAT.md`](BINARY_LOG_FORMAT.md)) para decodificação offline compatível com **MoTeC i2 / AiM Race Studio / MegaLogViewer**.
   - **Botões (`Free_SW1`, `Free_SW2`) e LEDs (`LED_Acquiring`, `LED_Working`)** para operação autônoma no *paddock*/pista.
 
 ---
@@ -140,8 +140,8 @@ Como os frames CAN chegam de forma assíncrona dos vários `ESP32-C3` e da ECU:
   - O `RtcService` deve obter a data/hora real do `DS3231SN#` via I2C (`GPIO 11/12`) e alinhar todos os pacotes CAN, leituras de ADC local e coordenadas GPS sob uma base de tempo única com resolução de `1 ms` ($\le 50\ \text{ms}$).
 - **RF-04 (Posicionamento e Velocidade GPS a 10 Hz — `RU 5.3`, `RU 6.2`, `RU 7.1`):**
   - O `GpsService` deve processar os pacotes do `Neo-8M` (`GPIO 13/47`) a `10 Hz` sem alocação dinâmica, fornecendo latitude, longitude e velocidade no solo para correlacionar com as células de carga (Aero) e inputs do piloto.
-- **RF-05 (Agregação em `RingBuffer` e Exportação `.csv` — `RU 2.2`, `RU 4.2`, `RU 5.3`):**
-  - O `LoggerService` (no **Core 0**) deve consumir os snapshots do `RingBuffer` / fila OSAL e gravar no MicroSD (`J4`) arquivos `.csv` compatíveis com **MoTeC i2**, **AiM Race Studio** e **MegaLogViewer**, com `fsync` periódico.
+- **RF-05 (Agregação em `RingBuffer` e Gravação Binária `.bin` — `RU 2.2`, `RU 4.2`, `RU 5.3`):**
+  - O `LoggerService` (no **Core 0**) deve consumir os snapshots do `RingBuffer` / fila OSAL e gravar no MicroSD (`J4`) arquivos binários `.bin` (`PDLG v1`, registros fixos de `256 bytes` com *Sync Word* `0xA55A` e CRC-32 IEEE conforme [`docs/BINARY_LOG_FORMAT.md`](BINARY_LOG_FORMAT.md)) com `fsync` periódico, permitindo decodificação offline para **MoTeC i2**, **AiM Race Studio** e **MegaLogViewer**.
 - **RF-06 (Interface de Pista — Botões e LEDs — `RU 2.1`):**
   - `Free_SW1` (`GPIO 35`): Iniciar/parar gravação; `Free_SW2` (`GPIO 36`): Marcador de volta/evento (*Beacon*).
   - `LED_Working` (`GPIO 39`) e `LED_Acquiring` (`GPIO 37`): Indicação visual de status do sistema, gravação ativa e falhas de nó CAN/SD.
@@ -151,7 +151,7 @@ Como os frames CAN chegam de forma assíncrona dos vários `ESP32-C3` e da ECU:
 ## 5. Requisitos Não-Funcionais (RNF)
 - **RNF-01 (Divisão Dual-Core no ESP32-S3):**
   - **Core 1 (`APP_CPU`):** Recepção e decodificação CAN em tempo real, leitura periódica dos 10 ADCs locais e recepção UART do GPS.
-  - **Core 0 (`PRO_CPU`):** Consumo do buffer, formatação CSV, escrita e `fsync` no MicroSD e atualização da UI.
+  - **Core 0 (`PRO_CPU`):** Consumo do buffer, serialização binária (`PDLG v1`), escrita e `fsync` no MicroSD e atualização da UI.
 - **RNF-02 (Zero Heap em Tempo Real):** Uso exclusivo de buffers estáticos, `std::array` e `bsw::RingBuffer<T, Capacity>`.
 - **RNF-03 (Testabilidade SIL 100%):** Toda a decodificação CAN dos nós `ESP32-C3` e da ECU, filtros de ADC, parsers de GPS/RTC e formatação de log devem possuir testes unitários em `tests/` via Google Test com `0 warnings`.
 
