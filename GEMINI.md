@@ -20,7 +20,8 @@ Este arquivo (`GEMINI.md`) é carregado automaticamente em todas as sessões. El
   - `03-tdd-sil-workflow.md` — Ciclo obrigatório Red → Green → Refactor, mocks SIL e stubs ESP-IDF no Host.
   - `04-hardware-esp32s3.md` — Restrições de GPIOs do ESP32-S3-N8R2 e uso obrigatório do `bsp_pins.h`.
 - **Skill Orquestradora:** `.agents/skills/orchestrator/SKILL.md` — Fluxo padrão para planejar, delegar, implementar e validar novas fases.
-- **Especificações e Roadmap:**
+- **Especificações, Protocolo CAN e Roadmap:**
+  - `docs/CAN_PROTOCOL.md` — **Tabela oficial de CAN IDs (`0x100`, `0x200..0x203`, `0x300..0x301`, FuelTech `0x14080600..0x14080602`), bytes e escalas para programar os nós `ESP32-C3`.**
   - `docs/REQUIREMENTS.md` — Requisitos funcionais, não-funcionais, taxas e calibrações.
   - `docs/ROADMAP.md` — Fases de implementação e acompanhamento de progresso.
 
@@ -71,6 +72,7 @@ ASW (main/main.cpp) ──► BSW (components/bsw/) ──► HAL (components/ha
 - [x] **Fase 0/BSP:** `bsp_pins.h` (26 sinais do esquemático da placa central) validado com TDD.
 - [x] **Fase 1 (Base CAN):** `CanService` + `CanTwaiLld` (`SN65HVD230DR` @ 500 kbps, 11/29-bit, auto-recovery Bus-Off) — 18 testes SIL passando.
 - [x] **Fase 2:** Topologia CAN distribuída (Central ESP32-S3 + 6 Nós ESP32-C3 [4x Rodas, Freio/Dir, IMU WIT] + ECU) documentada em `docs/REQUIREMENTS.md` e `docs/ROADMAP.md`.
-- [ ] **Fase 3 (Atual):** Estratégia de Aquisição CAN — Protocolo/Mapa de IDs, decodificador dos nós `ESP32-C3` + ECU (motor e marcha) e tabela `VehicleCanState` com detecção de timeout via TDD.
+- [x] **Fase 3 (Protocolo & Decodificador CAN):** `can_protocol.hpp` + `CanDecoderService` (`0x100` Freio/Dir, `0x200..0x203` 4x Rodas, `0x300..0x301` IMU WIT, FuelTech `0x14080600..0x14080602` Motor/Marcha + detecção de timeout) e guia `docs/CAN_PROTOCOL.md` — 24 testes SIL passando.
+- [ ] **Fase 4 (Atual):** Aquisição Analógica Local na Central — `ADC1` (10 canais `bsp::kAnalogChannels`, filtro digital passa-baixa e calibração linear via TDD).
 
 > **Regra:** Sempre que concluir uma etapa, atualize `docs/ROADMAP.md` e a seção **6** deste arquivo (mantendo `GEMINI.md` <= 200 linhas e sem caminhos locais da máquina).

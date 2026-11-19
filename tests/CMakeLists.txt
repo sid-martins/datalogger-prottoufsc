@@ -27,6 +27,7 @@ set(COMPONENTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../components")
 add_library(datalogger_bsw_lib STATIC
     "${COMPONENTS_DIR}/bsw/src/ring_buffer.cpp"
     "${COMPONENTS_DIR}/bsw/src/can_service.cpp"
+    "${COMPONENTS_DIR}/bsw/src/can_decoder_service.cpp"
     "${COMPONENTS_DIR}/lld/src/can_twai_lld.cpp"
 )
 
@@ -48,6 +49,7 @@ add_executable(datalogger_unit_tests
     test_bsp_pins.cpp
     test_ring_buffer.cpp
     test_can_service.cpp
+    test_can_decoder_service.cpp
 )
 
 target_include_directories(datalogger_unit_tests PRIVATE

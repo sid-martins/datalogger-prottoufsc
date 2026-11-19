@@ -3,6 +3,28 @@
 Firmware embarcado para **Datalogger Automotivo / Motorsport** baseado no **ESP32-S3 (`ESP32-S3-DEVKITC-1-N8R2`)**, desenvolvido em **C++17** sobre o **ESP-IDF nativo** e **FreeRTOS (Dual-Core)**, seguindo a arquitetura em camadas da indústria de **Motorsport / AUTOSAR** (`BSP`, `OSAL`, `HAL`, `LLD`, `BSW`, `ASW`) e validação **SIL (*Software-in-the-Loop*)** com **Google Test & Google Mock**.
 
 - **Repositório Oficial:** `git@github.com:sid-martins/datalogger-prottoufsc.git`
+- **Guia de Protocolo CAN para os Nós `ESP32-C3` e ECU FuelTech:** [`docs/CAN_PROTOCOL.md`](docs/CAN_PROTOCOL.md)
+- **Especificações e Requisitos FSAE:** [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
+- **Roadmap de Implementação:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
+
+---
+
+## Mapa Rápido de IDs CAN (`500 kbps` — `DLC = 8 bytes`)
+
+Para o guia completo de bytes, escalas e código C++ de exemplo para gravar nos nós **`ESP32-C3`**, consulte [`docs/CAN_PROTOCOL.md`](docs/CAN_PROTOCOL.md):
+
+| Nó Físico | MCU / Origem | CAN ID (Hex) | Formato / Endianness | Variáveis no Frame (`4 x 16-bit = 8 bytes`) |
+| :--- | :---: | :---: | :---: | :--- |
+| **Freio & Direção** | `ESP32-C3` | **`0x100`** | 11-bit / Little-Endian | Ângulo Direção, Pressão Freio Diant., Pressão Freio Tras., Pos. Pedal Freio |
+| **Roda Dianteira Esq. (`FL`)** | `ESP32-C3` | **`0x200`** | 11-bit / Little-Endian | Pot. Linear Suspensão, Velocidade Roda, Célula de Carga, Temp. Disco Freio |
+| **Roda Dianteira Dir. (`FR`)** | `ESP32-C3` | **`0x201`** | 11-bit / Little-Endian | Pot. Linear Suspensão, Velocidade Roda, Célula de Carga, Temp. Disco Freio |
+| **Roda Traseira Esq. (`RL`)** | `ESP32-C3` | **`0x202`** | 11-bit / Little-Endian | Pot. Linear Suspensão, Velocidade Roda, Célula de Carga, Temp. Disco Freio |
+| **Roda Traseira Dir. (`RR`)** | `ESP32-C3` | **`0x203`** | 11-bit / Little-Endian | Pot. Linear Suspensão, Velocidade Roda, Célula de Carga, Temp. Disco Freio |
+| **IMU WIT — Aceleração** | `ESP32-C3` | **`0x300`** | 11-bit / Little-Endian | Accel X, Accel Y, Accel Z ($0,01\ \text{m/s}^2$), Status Calibração |
+| **IMU WIT — Giroscópio** | `ESP32-C3` | **`0x301`** | 11-bit / Little-Endian | Gyro X, Gyro Y, Gyro Z ($0,1^\circ/\text{s}$), Reservado |
+| **ECU FuelTech (Bloco 1)** | FuelTech | **`0x14080600`** *(ou `0x600`)* | 29-bit / Big-Endian | TPS ($0,1\%$), MAP ($0,001\ \text{bar}$), Temp. Ar ($0,1^\circ\text{C}$), Temp. Motor ($0,1^\circ\text{C}$) |
+| **ECU FuelTech (Bloco 2)** | FuelTech | **`0x14080601`** *(ou `0x601`)* | 29-bit / Big-Endian | Pressão Óleo, Pressão Comb., Pressão Água, **Marcha Atual (`Gear`)** |
+| **ECU FuelTech (Bloco 3)** | FuelTech | **`0x14080602`** *(ou `0x602`)* | 29-bit / Big-Endian | Sonda Lambda ($0,001\ \lambda$), **RPM** ($1\ \text{rpm}$), Temp. Óleo ($0,1^\circ\text{C}$), Pit Limit |
 
 ---
 

@@ -30,19 +30,19 @@ Este roadmap reflete a **Arquitetura Distribuída via CAN** (Datalogger Central 
 
 ---
 
-## Fase 3: Estratégia de Aquisição da Rede CAN (Protocolo, Decodificador dos Nós C3 + ECU e Tabela de Estado) ⏳ (FOCO ATUAL)
+## Fase 3: Estratégia de Aquisição da Rede CAN (Protocolo, Decodificador dos Nós C3 + ECU e Tabela de Estado) ✅ (Concluída)
 *Atende: `RU 1.1`, `RU 3.1`, `RU 4.2` (Motor + Marcha), `RU 5.1` (Freio/Direção), `RU 5.2` (4 Rodas + IMU WIT), `RU 6.1` (4 Células de Carga).*
-- [ ] **3.1 Mapa de IDs e Protocolo CAN (`components/hal/` ou `components/bsw/`):**
-  - Definir IDs CAN, endianness, fatores de escala e offsets para:
-    - **4x Nós de Roda (`ESP32-C3` — `FL`, `FR`, `RL`, `RR`):** Temp. disco de freio, velocidade da roda, célula de carga, potenciômetro linear de suspensão.
-    - **1x Nó de Freio/Direção (`ESP32-C3`):** Ângulo de direção, pressão de freio dianteiro, pressão de freio traseiro, posição do pedal de freio.
-    - **1x Nó de IMU WIT (`ESP32-C3`):** Aceleração 3 eixos (`Ax, Ay, Az`) e Giroscópio 3 eixos (`Gx, Gy, Gz`) calibrados.
-    - **ECU:** Dados do motor (`RPM`, `TPS`, Temp. Motor, etc.) e **Marcha Atual (`Gear`)**.
-- [ ] **3.2 Decodificador e Tabela de Estado (`CanTelemetryService` / `CanDecoder` em `components/bsw/`):**
-  - Decodificar cada `CanFrame` recebido sem uso de heap e atualizar a estrutura estática `VehicleCanState`.
-  - Rastrear `last_rx_timestamp_ms` por nó para detectar falha/desconexão de qualquer `ESP32-C3` ou da ECU (*Node Stale / Timeout Detection*).
-- [ ] **3.3 Testes SIL (`tests/test_can_decoder.cpp`):**
-  - Validar via TDD a decodificação exata de todos os nós (`FL/FR/RL/RR`, Freio/Direção, IMU WIT e ECU c/ Marcha), frames corrompidos (`DLC` inválido) e detecção de *timeout* de nó desconectado.
+- [x] **3.1 Mapa de IDs e Protocolo CAN (`components/bsw/include/can_protocol.hpp` e `docs/CAN_PROTOCOL.md`):**
+  - Definidos IDs CAN, endianness, fatores de escala e offsets para:
+    - **4x Nós de Roda (`ESP32-C3` — `0x200` FL, `0x201` FR, `0x202` RL, `0x203` RR):** Potenciômetro linear de suspensão, velocidade da roda, célula de carga, temp. disco de freio.
+    - **1x Nó de Freio/Direção (`ESP32-C3` — `0x100`):** Ângulo de direção, pressão de freio dianteiro, pressão de freio traseiro, posição do pedal de freio.
+    - **1x Nó de IMU WIT (`ESP32-C3` — `0x300` Accel / `0x301` Gyro):** Aceleração 3 eixos (`Ax, Ay, Az`) e Giroscópio 3 eixos (`Gx, Gy, Gz`) calibrados.
+    - **ECU FuelTech (`FTCAN 2.0` — `0x14080600..0x14080602` / `0x600..0x602`):** Dados do motor (`RPM`, `TPS`, `MAP`, `Lambda`, Temps, Pressões) e **Marcha Atual (`Gear`)**.
+- [x] **3.2 Decodificador e Tabela de Estado (`CanDecoderService` em `components/bsw/`):**
+  - Decodifica cada `CanFrame` recebido sem uso de heap e atualiza a estrutura estática `VehicleCanState`.
+  - Rastreia `last_rx_timestamp_ms` por nó para detectar falha/desconexão de qualquer `ESP32-C3` ou da ECU (*Node Stale / Timeout Detection*).
+- [x] **3.3 Testes SIL (`tests/test_can_decoder_service.cpp`):**
+  - Validada via TDD a decodificação de todos os nós (`FL/FR/RL/RR`, Freio/Direção, IMU WIT e ECU FuelTech c/ Marcha), frames corrompidos (`DLC` inválido / RTR) e detecção de *timeout* de nó desconectado (24 testes SIL totais passando).
 
 ---
 

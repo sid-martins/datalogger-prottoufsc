@@ -40,7 +40,7 @@ if ($LASTEXITCODE -ne 0) { throw "Um ou mais testes SIL falharam!" }
 
 # 4. Quality Gate: Verifica sintaxe da camada ASW (main/main.cpp) e limite de linhas do GEMINI.md
 Write-Host "==> [4/4] Validando Quality Gate (ASW main.cpp syntax + GEMINI.md <= 200 linhas)..." -ForegroundColor Cyan
-g++ -fsyntax-only -std=c++17 -Wall -Wextra -Wpedantic `
+g++ -fsyntax-only -std=c++17 -Wall -Wextra -Wpedantic -Werror `
     -Imain `
     -Icomponents/bsp/include `
     -Icomponents/osal/include `
