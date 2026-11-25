@@ -24,11 +24,25 @@ public:
                           uint32_t rx_timeout_ms = 100,
                           uint32_t queue_timeout_ms = 10);
 
+    /**
+     * @brief Verifica o estado do barramento CAN e executa a recuperação completa de Bus-Off -> Stopped -> Start.
+     */
     bool check_and_recover_bus();
+
+    /**
+     * @brief Retorna o estado atual do controlador CAN reportado pelo HAL.
+     */
+    hal::CanBusState bus_state() const;
 
     static bool is_frame_valid(const hal::CanFrame& frame);
 
     bool is_initialized() const { return initialized_; }
+
+    /**
+     * @brief Indica se o controlador está em ciclo de recuperação de Bus-Off até retornar a kRunning.
+     */
+    bool is_recovering() const { return recovering_; }
+
     uint32_t tx_count() const { return tx_count_; }
     uint32_t rx_count() const { return rx_count_; }
     uint32_t tx_error_count() const { return tx_error_count_; }
@@ -38,6 +52,7 @@ public:
 private:
     hal::ICanHal& can_hal_;
     bool initialized_{false};
+    bool recovering_{false};
     uint32_t tx_count_{0};
     uint32_t rx_count_{0};
     uint32_t tx_error_count_{0};

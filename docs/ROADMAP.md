@@ -18,7 +18,7 @@ Este roadmap reflete a **Arquitetura Distribuída via CAN** (Datalogger Central 
 ## Fase 1: Transporte Base CAN Bus (`SN65HVD230DR` @ 500 kbps) ✅ (Concluída)
 *Atende: `RU 3.1`, Requisito Final `500 kbps`.*
 - [x] Contrato `ICanHal` (`CanFrame` 11/29-bit, `CanConfig` @ 500 kbps nos pinos `GPIO 15/16`).
-- [x] Serviço `CanService` (validação ID/DLC, fila OSAL RX, recuperação automática de *Bus-Off*) com 18 testes SIL passando.
+- [x] Serviço `CanService` (validação ID/DLC, fila OSAL RX, recuperação completa *Bus-Off -> Stopped -> Start*) com 15 testes SIL no módulo CAN.
 - [x] Driver `CanTwaiLld` (`driver/twai.h`) e integração inicial no `main.cpp`.
 
 ---
@@ -48,7 +48,7 @@ Este roadmap reflete a **Arquitetura Distribuída via CAN** (Datalogger Central 
 
 ## Fase 4: Aquisição Analógica Local na Central — ADC1 (10 Canais + Filtro Digital + Calibração) ✅ (Concluída)
 *Atende: `RU 1.2`, `RU 1.3`, `RU 4.1`, `RU 4.2`, Requisito Final `10 canais ADC`.*
-- [x] **HAL (`components/hal/include/i_adc_hal.hpp`) + Mock SIL (`mock_adc_hal.hpp`):** Contrato para leitura dos 10 canais de `bsp::kAnalogChannels` (`OilPressure`, `OilTemp`, `FuelPressure`, `Lambda`, `ADC5to3v3_1..4`, `ADC12to3v3_1..2`).
+- [x] **HAL (`components/datalogger_hal/include/i_adc_hal.hpp`) + Mock SIL (`mock_adc_hal.hpp`):** Contrato para leitura dos 10 canais de `bsp::kAnalogChannels` (`OilPressure`, `OilTemp`, `FuelPressure`, `Lambda`, `ADC5to3v3_1..4`, `ADC12to3v3_1..2`).
 - [x] **BSW (`AdcService`):** Filtro digital passa-baixa (EMA sem heap), conversão linear ($y = a \cdot x + b$) e amostragem multi-taxa por divisor de tick (`sample_tick`) com 7 testes SIL passando (`test_adc_service.cpp`).
 - [x] **LLD (`AdcOneshotLld`):** Implementação para `ADC1` do ESP32-S3 (`esp_adc/adc_oneshot.h`) + stubs Host e inicialização em `main/main.cpp`.
 
@@ -56,7 +56,7 @@ Este roadmap reflete a **Arquitetura Distribuída via CAN** (Datalogger Central 
 
 ## Fase 5: Sincronização Temporal (`<= 50 ms`) e RTC Externo `DS3231SN#` (I2C) ✅ (Concluída)
 *Atende: `RU 5.3`, Requisito Final `Timestamp <= 50 ms` (Meta: `1 ms`).*
-- [x] **HAL (`components/hal/include/i_rtc_hal.hpp`) + Mock SIL (`tests/sil_mocks/mock_rtc_hal.hpp`):** Contrato `IRtcHal` (`RtcI2cConfig`, `RtcDateTime`, `RtcDeviceStatus`) usando `PIN_I2C_SDA` (`GPIO 11`), `PIN_I2C_SCL` (`GPIO 12`), `I2C_MASTER_FREQ_HZ` (`400 kHz`) e `RTC_DS3231_I2C_ADDR` (`0x68`).
+- [x] **HAL (`components/datalogger_hal/include/i_rtc_hal.hpp`) + Mock SIL (`tests/sil_mocks/mock_rtc_hal.hpp`):** Contrato `IRtcHal` (`RtcI2cConfig`, `RtcDateTime`, `RtcDeviceStatus`) usando `PIN_I2C_SDA` (`GPIO 11`), `PIN_I2C_SCL` (`GPIO 12`), `I2C_MASTER_FREQ_HZ` (`400 kHz`) e `RTC_DS3231_I2C_ADDR` (`0x68`).
 - [x] **BSW (`RtcService` em `components/bsw/`):** Validação de calendário (`2000..2099`, anos bissextos), âncora monotônica de `1 ms` ($\le 50\ \text{ms}$), matemática epoch sem heap, `format_session_timestamp()` e fallback degradado monotônico (`RtcSyncStatus`) em falha I2C, perda de oscilador (`OSF`) ou calendário inválido.
 - [x] **LLD (`Ds3231I2cLld` em `components/lld/`):** Driver I2C Master (`driver/i2c_master.h`, leitura em rajada `0x00..0x0F`, `/EOSC=0` e limpeza de `OSF` em `write_datetime()`) + stub Host (`tests/esp_idf_stubs/include/driver/i2c_master.h`), inicialização em `main/main.cpp` e `29` novos testes SIL (`tests/test_rtc_service.cpp`, `60` testes SIL totais passando).
 
@@ -65,7 +65,7 @@ Este roadmap reflete a **Arquitetura Distribuída via CAN** (Datalogger Central 
 ## Fase 6: GPS Local `Neo-8M` a 10 Hz (UART) ✅ (Concluída)
 *Atende: `RU 5.3`, `RU 6.2` (Sincronia Aero-Velocidade), `RU 7.1` (Traçado/Pilotagem), Requisito Final `GPS 10 Hz`.*
 - [x] **Documentação Oficial (`docs/NEO8M_PROTOCOL.md`):** Referências normativas u-blox (`UBX-15031086`, `UBX-13003221`, `UBX-15031913`, `UBX-15029985`), análise de banda UART (`9600` $\rightarrow$ `115200 baud`), comandos binários UBX (`10 Hz`) e gramática NMEA `$xxGGA`/`$xxRMC`.
-- [x] **HAL (`components/hal/include/i_gps_hal.hpp`) + Mock SIL (`tests/sil_mocks/mock_gps_hal.hpp`):** Contrato `IGpsHal` (`GpsConfig` em `PIN_GPS_RX`/`PIN_GPS_TX` `GPIO 13/47`, `10 Hz`, `dynModel = 4` e `GpsData`).
+- [x] **HAL (`components/datalogger_hal/include/i_gps_hal.hpp`) + Mock SIL (`tests/sil_mocks/mock_gps_hal.hpp`):** Contrato `IGpsHal` (`GpsConfig` em `PIN_GPS_RX`/`PIN_GPS_TX` `GPIO 13/47`, `10 Hz`, `dynModel = 4` e `GpsData`).
 - [x] **BSW (`GpsService` em `components/bsw/`):** Framing de linha fixo (`128 B`) sem heap, descarte limitado de frames UBX (`0xB5 0x62`), validação XOR NMEA, parser `$GPGGA`/`$GNGGA` e `$GPRMC`/`$GNRMC` (`12..14` campos: lat/lon, velocidade em nós/km/h/m/s, curso, satélites, *fix*) e carimbo temporal via `RtcService` (com fallback degradado).
 - [x] **LLD (`Neo8mUartLld` em `components/lld/`):** Driver UART1 (`driver/uart.h`) com sequência de boot UBX (`UBX-CFG-PRT` `115200`, `UBX-CFG-MSG` GGA/RMC, `UBX-CFG-RATE` `100 ms`, `UBX-CFG-NAV5` Automotive) + stub Host (`tests/esp_idf_stubs/include/driver/uart.h`), inicialização em `main/main.cpp` e `19` novos testes SIL (`tests/test_gps_service.cpp`, **`79` testes SIL totais passando**).
 
@@ -74,7 +74,7 @@ Este roadmap reflete a **Arquitetura Distribuída via CAN** (Datalogger Central 
 ## Fase 7: Orquestração Dual-Core (Core 1 → `RingBuffer` → Core 0) e Armazenamento MicroSD (`J4` 64 GB) ✅ (Concluída)
 *Atende: `RU 2.2`, `RU 4.2`, `RU 5.3`, Requisito Final `Endurance 22 km (64 GB)`.*
 - [x] **Aggregator & Snapshot (`TelemetrySnapshot` + `TelemetryAggregator` em `components/bsw/`):** Unifica `RtcService` (`1 ms`), `CanDecoderService` (6 nós C3 + ECU), `AdcService` (10 canais) e `GpsService`, publicando via fila OSAL do **Core 1 (`acquisition_task` @ 100 Hz)** para o **Core 0**, com instanciação em `RingBuffer<TelemetrySnapshot, 32>`.
-- [x] **HAL (`IStorageHal`) + BSW (`LoggerService` / `binary_log_format.hpp`) + LLD (`SdCardLld`) + Spec (`docs/BINARY_LOG_FORMAT.md`):** Suporte a SDMMC 4-bit e SPI no conector `J4` (`GPIO 14, 17, 18, 21, 40, 41`), gravação **100% binária `.bin` (`PDLG v1`)** com cabeçalho autodescritivo de `256 bytes` (contendo as `10` `TAG_*` de `bsp::kAnalogChannels`), registros fixos de `256 bytes` Little-Endian com *Sync Word* `0xA55A` e CRC-32 IEEE 802.3, buffer de bloco `4 KB` (`16` registros) com `fsync`/`_commit` periódico, stubs Host e `14` testes SIL em `test_logger_service.cpp` (**`93` testes SIL totais passando**).
+- [x] **HAL (`IStorageHal`) + BSW (`LoggerService` / `binary_log_format.hpp`) + LLD (`SdCardLld`) + Spec (`docs/BINARY_LOG_FORMAT.md`):** Suporte a SDMMC 4-bit e SPI no conector `J4` (`GPIO 14, 17, 18, 21, 40, 41`), gravação **100% binária `.bin` (`PDLG v1`)** com cabeçalho autodescritivo de `256 bytes` (contendo as `10` `TAG_*` de `bsp::kAnalogChannels`), registros fixos de `256 bytes` Little-Endian com *Sync Word* `0xA55A` e CRC-32 IEEE 802.3, buffer de bloco `4 KB` (`16` registros) com `fsync`/`_commit` periódico, stubs Host e `14` testes SIL em `test_logger_service.cpp` (**`97` testes SIL totais passando**).
 
 ---
 

@@ -44,7 +44,7 @@ g++ -fsyntax-only -std=c++17 -Wall -Wextra -Wpedantic -Werror `
     -Imain `
     -Icomponents/bsp/include `
     -Icomponents/osal/include `
-    -Icomponents/hal/include `
+    -Icomponents/datalogger_hal/include `
     -Icomponents/lld/include `
     -Icomponents/bsw/include `
     -Itests/esp_idf_stubs/include `

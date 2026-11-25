@@ -161,5 +161,78 @@ TEST_F(CanServiceTest, CheckAndRecoverInitiatesRecoveryWhenBusOff) {
     EXPECT_EQ(service_.bus_off_recovery_count(), 1u);
 }
 
+TEST_F(CanServiceTest, CheckAndRecoverCompletesFullBusOffToRunningLifecycle) {
+    {
+        ::testing::InSequence seq;
+        EXPECT_CALL(mock_can_hal_, get_state()).WillOnce(Return(hal::CanBusState::kBusOff));
+        EXPECT_CALL(mock_can_hal_, initiate_recovery()).WillOnce(Return(true));
+        EXPECT_CALL(mock_can_hal_, get_state()).WillOnce(Return(hal::CanBusState::kRecovering));
+        EXPECT_CALL(mock_can_hal_, get_state()).WillOnce(Return(hal::CanBusState::kStopped));
+        EXPECT_CALL(mock_can_hal_, start()).WillOnce(Return(true));
+        EXPECT_CALL(mock_can_hal_, get_state()).WillOnce(Return(hal::CanBusState::kRunning));
+    }
+
+    EXPECT_TRUE(service_.check_and_recover_bus());
+    EXPECT_EQ(service_.bus_off_recovery_count(), 1u);
+    EXPECT_TRUE(service_.is_recovering());
+
+    EXPECT_FALSE(service_.check_and_recover_bus());
+    EXPECT_TRUE(service_.is_recovering());
+
+    EXPECT_TRUE(service_.check_and_recover_bus());
+    EXPECT_FALSE(service_.is_recovering());
+
+    EXPECT_FALSE(service_.check_and_recover_bus());
+    EXPECT_FALSE(service_.is_recovering());
+}
+
+TEST_F(CanServiceTest, CheckAndRecoverRetriesStartWhenStartFailsAfterRecovery) {
+    {
+        ::testing::InSequence seq;
+        EXPECT_CALL(mock_can_hal_, get_state()).WillOnce(Return(hal::CanBusState::kBusOff));
+        EXPECT_CALL(mock_can_hal_, initiate_recovery()).WillOnce(Return(true));
+        EXPECT_CALL(mock_can_hal_, get_state()).WillOnce(Return(hal::CanBusState::kStopped));
+        EXPECT_CALL(mock_can_hal_, start()).WillOnce(Return(false));
+        EXPECT_CALL(mock_can_hal_, get_state()).WillOnce(Return(hal::CanBusState::kStopped));
+        EXPECT_CALL(mock_can_hal_, start()).WillOnce(Return(true));
+    }
+
+    EXPECT_TRUE(service_.check_and_recover_bus());
+    EXPECT_TRUE(service_.is_recovering());
+
+    EXPECT_FALSE(service_.check_and_recover_bus());
+    EXPECT_TRUE(service_.is_recovering());
+
+    EXPECT_TRUE(service_.check_and_recover_bus());
+    EXPECT_FALSE(service_.is_recovering());
+}
+
+TEST_F(CanServiceTest, CheckAndRecoverRestartsStoppedBusOnlyWhenInitializedOrRecovering) {
+    EXPECT_CALL(mock_can_hal_, get_state()).WillOnce(Return(hal::CanBusState::kStopped));
+    EXPECT_CALL(mock_can_hal_, start()).Times(0);
+    EXPECT_FALSE(service_.check_and_recover_bus());
+
+    EXPECT_CALL(mock_can_hal_, init(_)).WillOnce(Return(true));
+    EXPECT_CALL(mock_can_hal_, start()).WillOnce(Return(true));
+    ASSERT_TRUE(service_.initialize());
+
+    EXPECT_CALL(mock_can_hal_, get_state()).WillOnce(Return(hal::CanBusState::kStopped));
+    EXPECT_CALL(mock_can_hal_, start()).WillOnce(Return(true));
+    EXPECT_TRUE(service_.check_and_recover_bus());
+}
+
+TEST_F(CanServiceTest, BusStateDelegatesToHal) {
+    EXPECT_CALL(mock_can_hal_, get_state())
+        .WillOnce(Return(hal::CanBusState::kRunning))
+        .WillOnce(Return(hal::CanBusState::kBusOff))
+        .WillOnce(Return(hal::CanBusState::kRecovering))
+        .WillOnce(Return(hal::CanBusState::kStopped));
+
+    EXPECT_EQ(service_.bus_state(), hal::CanBusState::kRunning);
+    EXPECT_EQ(service_.bus_state(), hal::CanBusState::kBusOff);
+    EXPECT_EQ(service_.bus_state(), hal::CanBusState::kRecovering);
+    EXPECT_EQ(service_.bus_state(), hal::CanBusState::kStopped);
+}
+
 } // namespace datalogger::sil
 

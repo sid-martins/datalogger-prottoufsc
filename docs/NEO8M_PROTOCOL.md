@@ -3,7 +3,7 @@
 Este documento é a **referência oficial de configuração binária UBX (`10 Hz`) e gramática NMEA 0183** para o módulo receptor GNSS u-blox **NEO-8M / NEO-M8** conectado ao Datalogger Central (`ESP32-S3`), utilizado para mapeamento de traçado, velocidade real em solo (*ground speed*) e correlação aerodinâmica sincronizados com a base temporal do `RtcService` ($\le 50\ \text{ms}$, resolução de $1\ \text{ms}$).
 
 - **Pinos e Hardware (BSP):** [`components/bsp/include/bsp_pins.h`](../components/bsp/include/bsp_pins.h)
-- **Interface HAL:** [`components/hal/include/i_gps_hal.hpp`](../components/hal/include/i_gps_hal.hpp)
+- **Interface HAL:** [`components/datalogger_hal/include/i_gps_hal.hpp`](../components/datalogger_hal/include/i_gps_hal.hpp)
 - **Driver LLD (`UART1` + UBX):** [`components/lld/include/neo8m_uart_lld.hpp`](../components/lld/include/neo8m_uart_lld.hpp)
 - **Serviço BSW (Parser NMEA Zero-Heap):** [`components/bsw/include/gps_service.hpp`](../components/bsw/include/gps_service.hpp)
 - **Interface UART:** `UART1`, **`115200 baud`**, **`8N1`** *(boot inicial de fábrica em `9600 baud`)*

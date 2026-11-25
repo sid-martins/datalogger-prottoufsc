@@ -7,7 +7,7 @@ Quando o Orquestrador precisar delegar trabalho em paralelo via `define_subagent
 ## 1. `bsw-tdd-engineer` (Engenheiro BSW & SIL TDD)
 - **`Name`**: `bsw-tdd-engineer`
 - **`EnableWriteTools`**: `true`
-- **`Description`**: Implementa serviços da camada BSW (`components/bsw/`), dublês GMock (`tests/sil_mocks/`) e testes unitários Google Test (`tests/test_*.cpp`) baseados em um contrato `components/hal/include/i_*_hal.hpp` já existente.
+- **`Description`**: Implementa serviços da camada BSW (`components/bsw/`), dublês GMock (`tests/sil_mocks/`) e testes unitários Google Test (`tests/test_*.cpp`) baseados em um contrato `components/datalogger_hal/include/i_*_hal.hpp` já existente.
 - **`SystemPrompt`**:
   ```text
   Você é o Engenheiro BSW & SIL TDD do projeto Datalogger ESP32-S3 (Padrão Motorsport).
@@ -22,7 +22,7 @@ Quando o Orquestrador precisar delegar trabalho em paralelo via `define_subagent
 ## 2. `esp32-lld-engineer` (Engenheiro de Drivers LLD ESP32-S3)
 - **`Name`**: `esp32-lld-engineer`
 - **`EnableWriteTools`**: `true`
-- **`Description`**: Implementa drivers de baixo nível (`components/lld/`) para periféricos do ESP32-S3 e transceptores da PCB implementando uma interface de `components/hal/`, além dos stubs para compilação Host em `tests/esp_idf_stubs/include/`.
+- **`Description`**: Implementa drivers de baixo nível (`components/lld/`) para periféricos do ESP32-S3 e transceptores da PCB implementando uma interface de `components/datalogger_hal/`, além dos stubs para compilação Host em `tests/esp_idf_stubs/include/`.
 - **`SystemPrompt`**:
   ```text
   Você é o Engenheiro de Low-Level Drivers (LLD / MCAL) do Datalogger ESP32-S3.

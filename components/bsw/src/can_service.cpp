@@ -6,6 +6,7 @@ CanService::CanService(hal::ICanHal& can_hal)
     : can_hal_(can_hal) {}
 
 bool CanService::initialize(const hal::CanConfig& config) {
+    recovering_ = false;
     if (!can_hal_.init(config)) {
         initialized_ = false;
         return false;
@@ -55,13 +56,31 @@ bool CanService::receive_to_queue(osal::IOsalQueue<hal::CanFrame>& rx_queue,
 }
 
 bool CanService::check_and_recover_bus() {
-    if (can_hal_.get_state() == hal::CanBusState::kBusOff) {
+    const hal::CanBusState state = can_hal_.get_state();
+    if (state == hal::CanBusState::kRunning) {
+        recovering_ = false;
+        return false;
+    }
+    if (state == hal::CanBusState::kBusOff) {
         if (can_hal_.initiate_recovery()) {
+            recovering_ = true;
             ++bus_off_recovery_count_;
             return true;
         }
+        return false;
+    }
+    if (state == hal::CanBusState::kStopped && (recovering_ || initialized_)) {
+        if (can_hal_.start()) {
+            recovering_ = false;
+            return true;
+        }
+        return false;
     }
     return false;
+}
+
+hal::CanBusState CanService::bus_state() const {
+    return can_hal_.get_state();
 }
 
 bool CanService::is_frame_valid(const hal::CanFrame& frame) {

@@ -6,7 +6,7 @@ trigger: always_on
 
 ## 1. Ciclo Red -> Green -> Refactor
 Toda nova funcionalidade nas camadas `bsw`, `hal`, `osal` ou `bsp` deve seguir rigorosamente o TDD:
-1. **Contrato (`HAL`/`OSAL`):** Defina ou atualize a interface pura em `components/hal/include/` ou `components/osal/include/`.
+1. **Contrato (`HAL`/`OSAL`):** Defina ou atualize a interface pura em `components/datalogger_hal/include/` ou `components/osal/include/`.
 2. **Dublê SIL (`tests/sil_mocks/`):** Crie ou atualize o Mock (`GMock`) ou Fake correspondente (ex: `MockCanHal`, `FakeOsalQueue`).
 3. **Teste Primeiro (`Red`):** Escreva os testes unitários em `tests/test_<modulo>.cpp` cobrindo casos nominais, limites de borda e cenários de falha.
 4. **Implementação (`Green`):** Implemente a lógica em `components/bsw/` e o driver físico em `components/lld/`.

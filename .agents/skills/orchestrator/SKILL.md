@@ -32,7 +32,7 @@ Sempre que usar subagentes em paralelo, siga estritamente esta divisão:
 
 ### Fase A — Contrato e Alinhamento (Somente o Orquestrador)
 1. Leia `docs/ROADMAP.md`, `docs/REQUIREMENTS.md` e `components/bsp/include/bsp_pins.h`.
-2. Crie **primeiro** o contrato puro da camada HAL (`components/hal/include/i_<modulo>_hal.hpp`).
+2. Crie **primeiro** o contrato puro da camada HAL (`components/datalogger_hal/include/i_<modulo>_hal.hpp`).
    - *Por quê?* Com o `.hpp` do contrato já salvo no disco, o agente de `BSW+SIL` e o agente de `LLD` podem trabalhar 100% em paralelo contra o mesmo header sem divergência de assinatura!
 
 ### Fase B — Construção Isolada (Direta ou Subagentes Paralelos)

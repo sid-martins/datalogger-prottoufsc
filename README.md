@@ -15,7 +15,7 @@ Firmware embarcado para **Datalogger Automotivo / Motorsport** baseado no **ESP3
 
 - **Fases 0 a 7 Concluídas** (ver [`docs/ROADMAP.md`](docs/ROADMAP.md)): BSP (`26` GPIOs), Transporte CAN (`500 kbps`) + Decodificador (`ESP32-C3` + FuelTech), ADC1 (`10` canais com filtro EMA e multi-taxa), **RTC `DS3231SN#` (`I2C 0x68`) com sincronização monotônica de `1 ms` ($\le 50\ \text{ms}$)**, **GPS `Neo-8M` a `10 Hz` (`UART1 115200 baud`, UBX + NMEA zero-heap)** e **Orquestração Dual-Core (`Core 1` $\rightarrow$ `Core 0`) + Logger Binário `.bin` (`PDLG v1`, `256 B/registro`, *Sync Word* + `CRC-32`, bloco `4 KB`) no MicroSD `J4`**.
 - **Próximo Passo (Fase 8):** Interface de Pista (botões `Free_SW1`/`Free_SW2`, LEDs `LED_Acquiring`/`LED_Working`) e Máquina de Estados ASW.
-- **Suíte SIL (Host):** **`93` testes automatizados passando** (`Google Test + Google Mock v1.14.0`, `0 warnings` com `-Wall -Wextra -Wpedantic`).
+- **Suíte SIL (Host):** **`97` testes automatizados passando** (`Google Test + Google Mock v1.14.0`, `0 warnings` com `-Wall -Wextra -Wpedantic`).
 
 ---
 
@@ -44,11 +44,11 @@ Para o guia completo de bytes, escalas e código C++ de exemplo para gravar nos 
 | :--- | :--- | :--- |
 | **BSP** (*Board Support Package*) | [`components/bsp/`](components/bsp) (`datalogger::bsp`) | *Pinning Table* da placa física ([`bsp_pins.h`](components/bsp/include/bsp_pins.h)): mapeia os 26 sinais do esquemático (`PIN_*` e `TAG_*`). |
 | **OSAL** (*OS Abstraction Layer*) | [`components/osal/`](components/osal) (`datalogger::osal`) | Abstrai o sistema operacional de tempo real ([`i_osal_queue.hpp`](components/osal/include/i_osal_queue.hpp) e [`freertos_queue_adapter.hpp`](components/osal/include/freertos_queue_adapter.hpp)). |
-| **HAL** (*Hardware Abstraction Layer*) | [`components/hal/`](components/hal) (`datalogger::hal`) | Contratos puramente virtuais e tipos de fronteira ([`i_can_hal.hpp`](components/hal/include/i_can_hal.hpp), [`i_adc_hal.hpp`](components/hal/include/i_adc_hal.hpp), [`i_rtc_hal.hpp`](components/hal/include/i_rtc_hal.hpp), [`i_gps_hal.hpp`](components/hal/include/i_gps_hal.hpp), [`i_storage_hal.hpp`](components/hal/include/i_storage_hal.hpp)). |
+| **HAL** (*Hardware Abstraction Layer*) | [`components/datalogger_hal/`](components/datalogger_hal) (`datalogger::hal`) | Contratos puramente virtuais e tipos de fronteira ([`i_can_hal.hpp`](components/datalogger_hal/include/i_can_hal.hpp), [`i_adc_hal.hpp`](components/datalogger_hal/include/i_adc_hal.hpp), [`i_rtc_hal.hpp`](components/datalogger_hal/include/i_rtc_hal.hpp), [`i_gps_hal.hpp`](components/datalogger_hal/include/i_gps_hal.hpp), [`i_storage_hal.hpp`](components/datalogger_hal/include/i_storage_hal.hpp)). |
 | **LLD** (*Low-Level Drivers / MCAL*) | [`components/lld/`](components/lld) (`datalogger::lld`) | Drivers específicos do silício ESP32-S3 e CIs da placa ([`can_twai_lld.cpp`](components/lld/src/can_twai_lld.cpp) para `SN65HVD230DR`; [`adc_oneshot_lld.cpp`](components/lld/src/adc_oneshot_lld.cpp) para `ADC1`; [`ds3231_i2c_lld.cpp`](components/lld/src/ds3231_i2c_lld.cpp) para `DS3231SN#`; [`neo8m_uart_lld.cpp`](components/lld/src/neo8m_uart_lld.cpp) para `Neo-8M`; [`sd_card_lld.cpp`](components/lld/src/sd_card_lld.cpp) para MicroSD `J4`). |
 | **BSW** (*Basic Software Services*) | [`components/bsw/`](components/bsw) (`datalogger::bsw`) | Serviços de comunicação, aquisição, tempo, GPS, agregação e gravação binária `PDLG v1` sem heap ([`can_service.cpp`](components/bsw/src/can_service.cpp), [`can_decoder_service.cpp`](components/bsw/src/can_decoder_service.cpp), [`adc_service.cpp`](components/bsw/src/adc_service.cpp), [`rtc_service.cpp`](components/bsw/src/rtc_service.cpp), [`gps_service.cpp`](components/bsw/src/gps_service.cpp), [`telemetry_aggregator.cpp`](components/bsw/src/telemetry_aggregator.cpp), [`logger_service.cpp`](components/bsw/src/logger_service.cpp), [`ring_buffer.hpp`](components/bsw/include/ring_buffer.hpp)). |
 | **ASW** (*Application Software*) | [`main/`](main) ([`main.cpp`](main/main.cpp)) | Aplicação final e orquestração das Tasks Dual-Core no ESP32-S3 (Core 1: `can_rx_task` + `acquisition_task` 100 Hz; Core 0: `storage_logger_task`). |
-| **SIL** (*Software-in-the-Loop*) | [`tests/`](tests) (`datalogger::sil`) | Suíte com `93` testes automatizados e dublês de hardware ([`tests/sil_mocks/`](tests/sil_mocks)) executados no PC via Google Test. |
+| **SIL** (*Software-in-the-Loop*) | [`tests/`](tests) (`datalogger::sil`) | Suíte com `97` testes automatizados e dublês de hardware ([`tests/sil_mocks/`](tests/sil_mocks)) executados no PC via Google Test. |
 
 ---
 
@@ -82,7 +82,7 @@ datalogger-prottoufsc/
 │   │   └── include/
 │   │       ├── i_osal_queue.hpp    # Interface IOsalQueue<T>
 │   │       └── freertos_queue_adapter.hpp # Implementação real com xQueue do FreeRTOS
-│   ├── hal/                        # [HAL] Hardware Abstraction Layer
+│   ├── datalogger_hal/             # [HAL] Hardware Abstraction Layer (prefixo evita colisão com hal do ESP-IDF)
 │   │   ├── CMakeLists.txt
 │   │   └── include/
 │   │       ├── i_adc_hal.hpp       # Contrato IAdcHal e AdcChannelId (10 canais ADC1)
@@ -150,7 +150,7 @@ datalogger-prottoufsc/
 git clone git@github.com:sid-martins/datalogger-prottoufsc.git
 cd datalogger-prottoufsc
 
-# 2. Compilar e rodar todos os 93 testes SIL (Google Test)
+# 2. Compilar e rodar todos os 97 testes SIL (Google Test)
 .\run_tests.ps1
 ```
 

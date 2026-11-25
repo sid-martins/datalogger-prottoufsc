@@ -43,7 +43,7 @@ add_library(datalogger_bsw_lib STATIC
 target_include_directories(datalogger_bsw_lib PUBLIC
     "${COMPONENTS_DIR}/bsp/include"
     "${COMPONENTS_DIR}/osal/include"
-    "${COMPONENTS_DIR}/hal/include"
+    "${COMPONENTS_DIR}/datalogger_hal/include"
     "${COMPONENTS_DIR}/lld/include"
     "${COMPONENTS_DIR}/bsw/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/esp_idf_stubs/include"

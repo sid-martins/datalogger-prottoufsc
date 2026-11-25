@@ -22,6 +22,7 @@ namespace {
 
 constexpr const char* kTag = "ASW_MAIN";
 constexpr TickType_t kAcquisitionPeriodTicks = pdMS_TO_TICKS(10); // 100 Hz
+constexpr TickType_t kCanRecoveryPollTicks   = pdMS_TO_TICKS(10);
 
 struct CanRxTaskContext {
     datalogger::bsw::CanService* service;
@@ -52,7 +53,14 @@ void can_rx_task(void* pvParameters) {
 
     while (true) {
         ctx->service->check_and_recover_bus();
-        ctx->service->receive_to_queue(*ctx->rx_queue, 100, 10);
+        if (ctx->service->bus_state() != datalogger::hal::CanBusState::kRunning) {
+            vTaskDelay(kCanRecoveryPollTicks);
+            continue;
+        }
+        if (!ctx->service->receive_to_queue(*ctx->rx_queue, 100, 10) &&
+            ctx->service->bus_state() != datalogger::hal::CanBusState::kRunning) {
+            vTaskDelay(kCanRecoveryPollTicks);
+        }
     }
 }
 
