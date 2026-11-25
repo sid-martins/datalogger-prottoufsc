@@ -172,10 +172,13 @@ Para executar apenas uma suíte específica (ex: apenas testes do serviço CAN):
 
 ## Como Compilar e Gravar no ESP32-S3 (ESP-IDF)
 
-Com o terminal do **ESP-IDF 5.x** aberto na pasta do projeto:
+No terminal **PowerShell** (dentro da pasta do projeto), ative o ambiente virtual do **ESP-IDF v5.4.4** (instalado via *Espressif Installation Manager*) e execute os comandos do `idf.py`:
 
 ```powershell
-# 1. Definir o target para ESP32-S3 (apenas na primeira vez)
+# 0. Ativar a venv e ferramentas do ESP-IDF na sessão atual do PowerShell
+. "C:\Espressif\tools\Microsoft.v5.4.4.PowerShell_profile.ps1"
+
+# 1. Definir o target para ESP32-S3 (apenas na primeira vez ou após limpar o sdkconfig)
 idf.py set-target esp32s3
 
 # 2. Compilar o binário (.bin)
@@ -184,4 +187,4 @@ idf.py build
 # 3. Gravar na placa (substitua COM4 pela porta do seu kit) e abrir o monitor serial
 idf.py -p COM4 flash monitor
 ```
-*(Pressione `Ctrl + ]` para sair do monitor serial).*
+*(Pressione `Ctrl + ]` para sair do monitor serial. Para limpar artefatos de compilação, use `idf.py fullclean`.)*
