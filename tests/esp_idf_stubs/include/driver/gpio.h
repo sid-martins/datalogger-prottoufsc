@@ -1,6 +1,14 @@
 #pragma once
 
 #ifdef __cplusplus
+#include <cstdint>
+#else
+#include <stdint.h>
+#endif
+
+#include "esp_err.h"
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -54,7 +62,83 @@ typedef enum {
     GPIO_NUM_MAX
 } gpio_num_t;
 
+typedef enum {
+    GPIO_INTR_DISABLE = 0,
+    GPIO_INTR_POSEDGE = 1,
+    GPIO_INTR_NEGEDGE = 2,
+    GPIO_INTR_ANYEDGE = 3,
+    GPIO_INTR_LOW_LEVEL = 4,
+    GPIO_INTR_HIGH_LEVEL = 5,
+    GPIO_INTR_MAX
+} gpio_int_type_t;
+
+typedef enum {
+    GPIO_MODE_DISABLE = 0,
+    GPIO_MODE_INPUT = 1,
+    GPIO_MODE_OUTPUT = 2,
+    GPIO_MODE_INPUT_OUTPUT = 3,
+    GPIO_MODE_OUTPUT_OD = 6,
+    GPIO_MODE_INPUT_OUTPUT_OD = 7
+} gpio_mode_t;
+
+typedef enum {
+    GPIO_PULLUP_DISABLE = 0x0,
+    GPIO_PULLUP_ENABLE = 0x1
+} gpio_pullup_t;
+
+typedef enum {
+    GPIO_PULLDOWN_DISABLE = 0x0,
+    GPIO_PULLDOWN_ENABLE = 0x1
+} gpio_pulldown_t;
+
+typedef struct {
+    uint64_t pin_bit_mask;
+    gpio_mode_t mode;
+    gpio_pullup_t pull_up_en;
+    gpio_pulldown_t pull_down_en;
+    gpio_int_type_t intr_type;
+} gpio_config_t;
+
+#ifdef __cplusplus
+#define GPIO_STUB_NULL nullptr
+#define GPIO_STUB_INT(x) static_cast<int>(x)
+#else
+#define GPIO_STUB_NULL ((void*)0)
+#define GPIO_STUB_INT(x) ((int)(x))
+#endif
+
+inline esp_err_t gpio_config(const gpio_config_t* pGPIOConfig) {
+    if (pGPIOConfig == GPIO_STUB_NULL || pGPIOConfig->pin_bit_mask == 0ULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return ESP_OK;
+}
+
+inline esp_err_t gpio_set_level(gpio_num_t gpio_num, uint32_t level) {
+    if (GPIO_STUB_INT(gpio_num) < 0 || GPIO_STUB_INT(gpio_num) >= GPIO_STUB_INT(GPIO_NUM_MAX)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    (void)level;
+    return ESP_OK;
+}
+
+inline int gpio_get_level(gpio_num_t gpio_num) {
+    if (GPIO_STUB_INT(gpio_num) < 0 || GPIO_STUB_INT(gpio_num) >= GPIO_STUB_INT(GPIO_NUM_MAX)) {
+        return 0;
+    }
+    return 1;
+}
+
+inline esp_err_t gpio_reset_pin(gpio_num_t gpio_num) {
+    if (GPIO_STUB_INT(gpio_num) < 0 || GPIO_STUB_INT(gpio_num) >= GPIO_STUB_INT(GPIO_NUM_MAX)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return ESP_OK;
+}
+
+#undef GPIO_STUB_INT
+#undef GPIO_STUB_NULL
+
 #ifdef __cplusplus
 }
 #endif
-

@@ -15,6 +15,9 @@ CONFIG_COMPILER_CXX_EXCEPTIONS=y
 # Watchdog e Logs
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 
+# Módulo ESP32-S3-N8R2: mantém PSRAM desabilitada para liberar totalmente GPIO 35, 36 e 37 (UI)
+CONFIG_SPIRAM=n
+
 # FatFs (MicroSD): Long File Names na stack (sem heap) para LOG_YYYYMMDD_HHMMSS.bin / LOG_BOOT_*.bin
 CONFIG_FATFS_LFN_STACK=y
 CONFIG_FATFS_MAX_LFN=64

@@ -142,9 +142,10 @@ Como os frames CAN chegam de forma assíncrona dos vários `ESP32-C3` e da ECU:
   - O `GpsService` deve processar os pacotes do `Neo-8M` (`GPIO 13/47`) a `10 Hz` sem alocação dinâmica, fornecendo latitude, longitude e velocidade no solo para correlacionar com as células de carga (Aero) e inputs do piloto.
 - **RF-05 (Agregação em `RingBuffer` e Gravação Binária `.bin` — `RU 2.2`, `RU 4.2`, `RU 5.3`):**
   - O `LoggerService` (no **Core 0**) deve consumir os snapshots do `RingBuffer` / fila OSAL e gravar no MicroSD (`J4`) arquivos binários `.bin` (`PDLG v1`, registros fixos de `256 bytes` com *Sync Word* `0xA55A` e CRC-32 IEEE conforme [`docs/BINARY_LOG_FORMAT.md`](BINARY_LOG_FORMAT.md)) com `fsync` periódico, permitindo decodificação offline para **MoTeC i2**, **AiM Race Studio** e **MegaLogViewer**.
-- **RF-06 (Interface de Pista — Botões e LEDs — `RU 2.1`):**
-  - `Free_SW1` (`GPIO 35`): Iniciar/parar gravação; `Free_SW2` (`GPIO 36`): Marcador de volta/evento (*Beacon*).
-  - `LED_Working` (`GPIO 39`) e `LED_Acquiring` (`GPIO 37`): Indicação visual de status do sistema, gravação ativa e falhas de nó CAN/SD.
+- **RF-06 (Interface de Pista e Acionamento Automático por RPM — Botões e LEDs — `RU 2.1`):**
+  - **Gravação Automática por Motor Ativo (`RPM > 600`):** A sessão `.bin` no MicroSD deve iniciar automaticamente sempre que a ECU estiver online na rede CAN com **`RPM > 600`**, e encerrar/fechar o arquivo após **`5 s` contínuos** com `RPM <= 600` ou perda de comunicação CAN da ECU (evitando fragmentação de logs em oscilações rápidas e garantindo fechamento limpo no corte de ignição).
+  - `Free_SW1` (`GPIO 35`): Em *standby* / reservado nesta fase (configurado como entrada segura sem ação ativa); `Free_SW2` (`GPIO 36`): Marcador de volta/evento (*Lap Beacon* com debounce digital).
+  - `LED_Working` (`GPIO 39`) e `LED_Acquiring` (`GPIO 37`): Indicação visual de status do sistema (*heartbeat*), gravação ativa (`LED_Acquiring` contínuo) e alertas de falha de MicroSD ou nó CAN.
 
 ---
 

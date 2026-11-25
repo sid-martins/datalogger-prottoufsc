@@ -78,12 +78,12 @@ Este roadmap reflete a **Arquitetura Distribuída via CAN** (Datalogger Central 
 
 ---
 
-## Fase 8: Interface de Pista (Botões/LEDs) e Máquina de Estados ASW ⏳ (Próximo Passo)
-*Atende: `RU 2.1`, FSAE Field Serviceability (15 pts).*
-- [ ] **HAL (`IGpioHal`) + BSW (`UiService`):** Controle de Start/Stop (`Free_SW1`), *Lap Beacon* (`Free_SW2`) e diagnóstico visual nos LEDs (`LED_Acquiring`, `LED_Working`).
-- [ ] **ASW (`main/main.cpp`):** Integração final de todas as tasks Dual-Core.
+## Fase 8: Interface de Pista (Acionamento por RPM, Beacon/LEDs) e Máquina de Estados ASW ✅ (Concluída)
+*Atende: `RU 2.1`, `RF-06`, FSAE Field Serviceability (15 pts).*
+- [x] **HAL (`IGpioHal` em `components/datalogger_hal/`) + LLD (`GpioLld`) + BSW (`UiService`):** Gravação automática acionada por **`RPM > 600`** (com ECU online na CAN) e encerramento automático após **`5 s` contínuos** com `RPM <= 600` ou ECU offline; botão `Free_SW1` (`GPIO 35`) reservado em *standby* (sem ação ativa), *Lap Beacon* com debounce (`50 ms`) em `Free_SW2` (`GPIO 36`) e diagnóstico visual nos LEDs (`LED_Acquiring` contínuo gravando; `LED_Working` heartbeat `1 Hz`, alerta CAN `2,5 Hz` e falha SD `5 Hz`) — `9` novos testes em `test_ui_service.cpp` (**`106` testes SIL totais passando**).
+- [x] **ASW (`main/main.cpp` + `sdkconfig.defaults`):** Integração final de todas as tasks Dual-Core (Core 1: `can_rx_task` + `acquisition_task` 100 Hz; Core 0: `ui_task` 50 Hz + `storage_logger_task` com cooldown de retry de SD e drenagem de fila), `CONFIG_SPIRAM=n` e build real validado no **ESP-IDF `v5.4.4`** (`idf.py build`, `0` warnings).
 
 ---
 
-## Fase 9: Validação Integrada em Bancada e Pista (ESP32-S3 + Nós ESP32-C3 + ECU) 🔜
+## Fase 9: Validação Integrada em Bancada e Pista (ESP32-S3 + Nós ESP32-C3 + ECU) ⏳ (Próximo Passo)
 - [ ] Build e flash no ESP32-S3 (`idf.py build`) + teste de recepção CAN com os nós `ESP32-C3` e ECU + validação da decodificação do log `.bin` (`PDLG v1`) no **MoTeC i2** / **MegaLogViewer**.
