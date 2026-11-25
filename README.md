@@ -6,6 +6,7 @@ Firmware embarcado para **Datalogger Automotivo / Motorsport** baseado no **ESP3
 - **Guia de Protocolo CAN para os Nós `ESP32-C3` e ECU FuelTech:** [`docs/CAN_PROTOCOL.md`](docs/CAN_PROTOCOL.md)
 - **Guia de Protocolo GPS (`Neo-8M` 10 Hz — UBX + NMEA):** [`docs/NEO8M_PROTOCOL.md`](docs/NEO8M_PROTOCOL.md)
 - **Especificação do Formato Binário de Log (`.bin` / `PDLG v1`):** [`docs/BINARY_LOG_FORMAT.md`](docs/BINARY_LOG_FORMAT.md)
+- **Plano e Suíte de Testes em Hardware (`TC-00..TC-09`):** [`docs/HARDWARE_TEST_PLAN.md`](docs/HARDWARE_TEST_PLAN.md)
 - **Especificações e Requisitos FSAE:** [`docs/REQUIREMENTS.md`](docs/REQUIREMENTS.md)
 - **Roadmap de Implementação:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
@@ -66,6 +67,7 @@ datalogger-prottoufsc/
 ├── docs/                           # Especificações técnicas, protocolos e roadmap
 │   ├── BINARY_LOG_FORMAT.md        # Especificação byte a byte do log binário .bin (PDLG v1)
 │   ├── CAN_PROTOCOL.md             # Tabela oficial de IDs CAN (ESP32-C3 + FuelTech)
+│   ├── HARDWARE_TEST_PLAN.md       # Suíte completa de testes de bancada e pista (TC-00..TC-09)
 │   ├── NEO8M_PROTOCOL.md           # Referência oficial u-blox NEO-8M (UBX 10 Hz + NMEA)
 │   ├── REQUIREMENTS.md             # Requisitos funcionais e não-funcionais FSAE
 │   └── ROADMAP.md                  # Fases de implementação e progresso

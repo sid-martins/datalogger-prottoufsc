@@ -24,6 +24,7 @@ Este arquivo (`GEMINI.md`) é carregado automaticamente em todas as sessões. El
   - `docs/CAN_PROTOCOL.md` — **Tabela oficial de CAN IDs (`0x100`, `0x200..0x203`, `0x300..0x301`, FuelTech `0x14080600..0x14080602`), bytes e escalas para programar os nós `ESP32-C3`.**
   - `docs/NEO8M_PROTOCOL.md` — **Referência oficial u-blox NEO-8M / NEO-M8 (`UBX-15031086`, `UBX-13003221`), configuração UBX `10 Hz` (`115200 baud`) e gramática NMEA `$xxGGA`/`$xxRMC`.**
   - `docs/BINARY_LOG_FORMAT.md` — **Especificação oficial do log binário `.bin` (`PDLG v1`, `256 B/registro`, *Sync Word* + `CRC-32`) para decodificadores externos.**
+  - `docs/HARDWARE_TEST_PLAN.md` — **Suíte completa de testes de bancada e pista (`TC-00..TC-09`) para validação do hardware montado.**
   - `docs/REQUIREMENTS.md` — Requisitos funcionais, não-funcionais, taxas e calibrações.
   - `docs/ROADMAP.md` — Fases de implementação e acompanhamento de progresso.
 

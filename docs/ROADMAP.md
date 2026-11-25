@@ -86,4 +86,5 @@ Este roadmap reflete a **Arquitetura Distribuída via CAN** (Datalogger Central 
 ---
 
 ## Fase 9: Validação Integrada em Bancada e Pista (ESP32-S3 + Nós ESP32-C3 + ECU) ⏳ (Próximo Passo)
-- [ ] Build e flash no ESP32-S3 (`idf.py build`) + teste de recepção CAN com os nós `ESP32-C3` e ECU + validação da decodificação do log `.bin` (`PDLG v1`) no **MoTeC i2** / **MegaLogViewer**.
+- [x] **Plano e Suíte de Testes em Hardware (`docs/HARDWARE_TEST_PLAN.md`):** Roteiro completo `TC-00..TC-09` (*Smoke Test*, Boot Dual-Core, UI/LEDs, RTC `DS3231SN#`, `10x ADC1`, GPS `Neo-8M` `10 Hz`, CAN `500 kbps` c/ vetores hexadecimais e *Bus-Off*, Auto-Start `RPM > 600` + corte de energia e script auditor Python `PDLG v1`).
+- [ ] Execução da suíte `docs/HARDWARE_TEST_PLAN.md` na placa física montada + teste integrado com os nós `ESP32-C3` e ECU + validação no **MoTeC i2** / **MegaLogViewer**.
