@@ -108,7 +108,7 @@ bool LoggerService::initialize(const hal::StorageConfig& config) {
     return storage_hal_.mount(config_);
 }
 
-bool LoggerService::start_session(const RtcService& rtc_service) {
+bool LoggerService::start_session(const RtcService& rtc_service, uint32_t engine_hours_total_s) {
     if (session_active_) {
         return false;
     }
@@ -144,7 +144,8 @@ bool LoggerService::start_session(const RtcService& rtc_service) {
         start_ts.monotonic_ms,
         start_ts.epoch_ms,
         nominal_rate_hz_,
-        start_ts.synchronized
+        start_ts.synchronized,
+        engine_hours_total_s
     };
 
     std::array<uint8_t, kFileHeaderSize> header_buf{};
@@ -298,8 +299,11 @@ std::size_t LoggerService::encode_file_header(const binlog::BinarySessionHeaderM
     // 192..223: Identificador do dispositivo/versão do hardware
     write_fixed_ascii_slot(out_buf, offset, binlog::kDeviceIdSlotSize, binlog::kDeviceId);
 
-    // 224..251: Reservado (zerado via memset inicial)
-    offset += 28u;
+    // 224..227: Horímetro acumulado do motor na abertura da sessão (segundos totais, uint32_t LE)
+    write_u32_le(out_buf, offset, meta.engine_hours_total_s);
+
+    // 228..251: Reservado (zerado via memset inicial)
+    offset += 24u;
 
     // 252..255: CRC-32 IEEE 802.3 sobre bytes 0..251
     const uint32_t crc = compute_crc32(out_buf, offset);

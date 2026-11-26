@@ -45,7 +45,7 @@ public:
     /**
      * @brief Abre nova sessão (`LOG_<session_ts>.bin`), grava cabeçalho PDLG de 256 bytes e sincroniza.
      */
-    bool start_session(const RtcService& rtc_service);
+    bool start_session(const RtcService& rtc_service, uint32_t engine_hours_total_s = 0u);
 
     /**
      * @brief Serializa um snapshot em registro binário de 256 bytes e grava no bloco / MicroSD.

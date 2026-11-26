@@ -9,6 +9,7 @@ idf_component_register(
         "src/telemetry_aggregator.cpp"
         "src/logger_service.cpp"
         "src/ui_service.cpp"
+        "src/engine_hours_service.cpp"
     INCLUDE_DIRS "include"
     REQUIRES bsp osal datalogger_hal
 )

@@ -1,3 +1,4 @@
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -13,11 +14,13 @@
 #include "can_service.hpp"
 #include "can_twai_lld.hpp"
 #include "ds3231_i2c_lld.hpp"
+#include "engine_hours_service.hpp"
 #include "freertos_queue_adapter.hpp"
 #include "gpio_lld.hpp"
 #include "gps_service.hpp"
 #include "logger_service.hpp"
 #include "neo8m_uart_lld.hpp"
+#include "nvs_lld.hpp"
 #include "rtc_service.hpp"
 #include "sd_card_lld.hpp"
 #include "telemetry_aggregator.hpp"
@@ -40,6 +43,7 @@ struct SharedRuntimeState {
     std::atomic<bool> ecu_online{false};
     std::atomic<bool> can_warning{false};
     std::atomic<uint16_t> lap_beacon{0u};
+    std::atomic<uint32_t> engine_hours_total_s{0u};
     std::atomic<bool> recording_requested{false};
     std::atomic<bool> session_active{false};
     std::atomic<bool> storage_fault{false};
@@ -63,6 +67,7 @@ struct AcquisitionTaskContext {
 
 struct UiTaskContext {
     datalogger::bsw::UiService* ui_service;
+    datalogger::bsw::EngineHoursService* engine_hours_service;
     const datalogger::bsw::RtcService* rtc_service;
     SharedRuntimeState* shared;
 };
@@ -159,11 +164,14 @@ void ui_task(void* pvParameters) {
         inputs.can_warning = ctx->shared->can_warning.load(std::memory_order_relaxed);
 
         ctx->ui_service->update(inputs);
+        ctx->engine_hours_service->update(inputs.now_ms, inputs.ecu_rpm, inputs.ecu_online);
 
         ctx->shared->recording_requested.store(ctx->ui_service->recording_requested(),
                                                std::memory_order_relaxed);
         ctx->shared->lap_beacon.store(ctx->ui_service->lap_beacon(),
                                       std::memory_order_relaxed);
+        ctx->shared->engine_hours_total_s.store(ctx->engine_hours_service->total_seconds(),
+                                                std::memory_order_relaxed);
 
         vTaskDelayUntil(&last_wake_time, kUiPeriodTicks);
     }
@@ -190,11 +198,16 @@ void storage_logger_task(void* pvParameters) {
                 (now_ms >= last_open_retry_ms &&
                  (now_ms - last_open_retry_ms) >= kStorageRetryCooldownMs)) {
                 while (ctx->telemetry_queue->receive(discard, 0u)) {}
-                if (ctx->logger_service->start_session(*ctx->rtc_service)) {
+                const uint32_t eng_sec =
+                    ctx->shared->engine_hours_total_s.load(std::memory_order_relaxed);
+                if (ctx->logger_service->start_session(*ctx->rtc_service, eng_sec)) {
                     retry_cooldown_active = false;
                     ctx->shared->storage_fault.store(false, std::memory_order_relaxed);
                     ctx->shared->session_active.store(true, std::memory_order_relaxed);
-                    ESP_LOGI(kTag, "Sessao MicroSD iniciada (RPM > 600): %.*s",
+                    ESP_LOGI(kTag,
+                             "Sessao MicroSD iniciada (RPM > 600, motor=%02lu:%02lu): %.*s",
+                             static_cast<unsigned long>(eng_sec / 3600u),
+                             static_cast<unsigned long>((eng_sec % 3600u) / 60u),
                              static_cast<int>(ctx->logger_service->current_file_path().size()),
                              ctx->logger_service->current_file_path().data());
                 } else {
@@ -217,8 +230,14 @@ void storage_logger_task(void* pvParameters) {
                 ctx->shared->storage_fault.store(true, std::memory_order_relaxed);
             }
             retry_cooldown_active = false;
-            ESP_LOGI(kTag, "Sessao MicroSD encerrada apos 5s de motor parado (amostras=%lu)",
-                     static_cast<unsigned long>(ctx->logger_service->samples_logged()));
+            const uint32_t eng_sec =
+                ctx->shared->engine_hours_total_s.load(std::memory_order_relaxed);
+            (void)eng_sec;
+            ESP_LOGI(kTag,
+                     "Sessao MicroSD encerrada apos 5s de motor parado (amostras=%lu, motor=%02lu:%02lu)",
+                     static_cast<unsigned long>(ctx->logger_service->samples_logged()),
+                     static_cast<unsigned long>(eng_sec / 3600u),
+                     static_cast<unsigned long>((eng_sec % 3600u) / 60u));
             continue;
         }
 
@@ -245,6 +264,9 @@ extern "C" void app_main(void) {
     static datalogger::osal::FreeRtosQueueAdapter<datalogger::hal::CanFrame> can_rx_queue(64);
     static datalogger::osal::FreeRtosQueueAdapter<datalogger::bsw::TelemetrySnapshot> telemetry_queue(32);
 
+    static datalogger::lld::NvsLld nvs_lld;
+    static datalogger::bsw::EngineHoursService engine_hours_service(nvs_lld);
+
     static datalogger::lld::GpioLld gpio_lld;
     static datalogger::bsw::UiService ui_service(gpio_lld);
 
@@ -266,6 +288,22 @@ extern "C" void app_main(void) {
 
     static datalogger::lld::SdCardLld sd_card_lld;
     static datalogger::bsw::LoggerService logger_service(sd_card_lld);
+
+    // Inicializa horímetro permanente do motor na partição NVS (checkpoint 1 min + parada)
+    {
+        const bool nvm_ok = engine_hours_service.initialize();
+        shared_state.engine_hours_total_s.store(engine_hours_service.total_seconds(),
+                                                std::memory_order_relaxed);
+        std::array<char, datalogger::bsw::EngineHoursService::kMinFormatBufSize> hhmm_buf{};
+        engine_hours_service.format_hhmm(hhmm_buf.data(), hhmm_buf.size());
+        if (nvm_ok) {
+            ESP_LOGI(kTag, "Horimetro de motor (NVS): %s (%lu s acumulados)",
+                     hhmm_buf.data(),
+                     static_cast<unsigned long>(engine_hours_service.total_seconds()));
+        } else {
+            ESP_LOGW(kTag, "Falha ao abrir NVS do horimetro; acumulando apenas em RAM nesta sessao");
+        }
+    }
 
     // Inicializa interface de pista (Free_SW1 standby, Free_SW2 beacon, LEDs Acquiring/Working)
     if (!ui_service.initialize()) {
@@ -320,7 +358,12 @@ extern "C" void app_main(void) {
         &telemetry_queue,
         &shared_state
     };
-    static UiTaskContext ui_ctx{&ui_service, &rtc_service, &shared_state};
+    static UiTaskContext ui_ctx{
+        &ui_service,
+        &engine_hours_service,
+        &rtc_service,
+        &shared_state
+    };
     static StorageTaskContext storage_ctx{
         &logger_service,
         &rtc_service,

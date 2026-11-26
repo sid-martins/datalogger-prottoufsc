@@ -179,6 +179,7 @@ Payloads de teste para `0x14080602` (`29-bit`, Big-Endian):
 | **`TC-07.3`** | Fechamento automático por motor parado (`5 s`) **e** por chave geral da ECU desligada | 1. Com sessão ativa, reduza para `RPM = 0` por `6 s` $\rightarrow$ confirme fechamento.<br>2. Abra nova sessão com `RPM = 3500` e **desconecte o cabo CAN da ECU** abruptamente (sem enviar `RPM = 0`). Cronometre o tempo até `LED_Acquiring` apagar. | Em (1), fecha em **`5,0 s`**. Em (2), mesmo com último RPM `3500`, a perda de presença da ECU (`200 ms`) + *hold* (`5,0 s`) fecha e sincroniza o `.bin` em **`~5,2 s`**, exibindo `Sessao MicroSD encerrada`. |
 | **`TC-07.4`** | Resiliência a Corte Brusco de Energia (*Master Switch Kill Test*) | Com sessão ativa (`RPM = 3500`), aguarde **`20 segundos`** de gravação (`~2000` amostras) e **desligue a fonte de `12 V` de forma abrupta**. Leve o MicroSD ao PC e rode o script da Seção 11. | Graças ao bloco de `4 KB` e `fsync` a cada `50` amostras (`0,5 s`), o arquivo existe na tabela FAT32, possui cabeçalho íntegro e recupera **`>= 1950` registros com `CRC-32` válido** (`< 0,5 s` perdidos no corte). |
 | **`TC-07.5`** | Proteção e *Cooldown* em falha de MicroSD | Ligue a placa **sem cartão MicroSD** e injete `RPM = 1500`. | `LED_Working` pisca a **`5 Hz`**, `LED_Acquiring` permanece **`OFF`**, e o Core 0 respeita o *cooldown* de `2000 ms` entre tentativas sem travar o console ou o Core 1. |
+| **`TC-07.6`** | Horímetro permanente de motor na NVS (`Engine Run Time Total` — `HH:MM`) | 1. Verifique no boot o log `Horimetro de motor (NVS): HH:MM (X s acumulados)`.<br>2. Injete `RPM = 1500` por **`75 segundos`** (`1 min 15 s`), corte o `RPM` para `0`, aguarde `6 s` e desligue totalmente a placa (`12 V` + USB).<br>3. Religue a placa, abra uma nova sessão curta e rode o auditor Python da Seção 11. | O horímetro avança `+75 s` (`+00:01` em `HH:MM`), sobrevive ao desligamento total na partição `nvs` (checkpoint de `1 min` + commit na parada) e aparece gravado no campo `engine_hours_total_s` do cabeçalho `.bin`. |
 
 ---
 
@@ -190,7 +191,7 @@ Salve ou execute o comando Python abaixo no PC apontando para qualquer arquivo `
 import struct, sys, zlib
 from pathlib import Path
 
-HDR_FMT = "<4sHHHHHBBQQ160s32s28sI"
+HDR_FMT = "<4sHHHHHBBQQ160s32sI24sI"
 REC_FMT = "<HBBIQQHHBBHdd4f10f4f16f6f9fHhHHI"
 
 def audit_pdlg(path_str: str) -> None:
@@ -198,14 +199,15 @@ def audit_pdlg(path_str: str) -> None:
     assert len(data) >= 256, "FAIL: Arquivo menor que 256 bytes!"
 
     hdr = struct.unpack(HDR_FMT, data[:256])
-    magic, ver, hdr_sz, rec_sz, hdr_flags, rate_hz, adc_n, can_n, mono0, epoch0, tags_raw, dev_raw, _, hdr_crc = hdr
+    magic, ver, hdr_sz, rec_sz, hdr_flags, rate_hz, adc_n, can_n, mono0, epoch0, tags_raw, dev_raw, eng_sec, _, hdr_crc = hdr
     calc_hdr_crc = zlib.crc32(data[:252]) & 0xFFFFFFFF
     assert magic == b"PDLG" and ver == 1, f"FAIL: Magic/Versao invalida: {magic} v{ver}"
     assert calc_hdr_crc == hdr_crc, f"FAIL: Header CRC32 invalido ({calc_hdr_crc:#x} != {hdr_crc:#x})"
 
     tags = [tags_raw[i*16:(i+1)*16].split(b"\x00", 1)[0].decode("ascii") for i in range(adc_n)]
     dev_id = dev_raw.split(b"\x00", 1)[0].decode("ascii")
-    print(f"[OK] Header PDLG v{ver} | Device: {dev_id} | Rate: {rate_hz} Hz | RTC Sync: {bool(hdr_flags & 1)}")
+    eng_hhmm = f"{eng_sec // 3600:02d}:{(eng_sec % 3600) // 60:02d}"
+    print(f"[OK] Header PDLG v{ver} | Device: {dev_id} | Rate: {rate_hz} Hz | RTC Sync: {bool(hdr_flags & 1)} | Motor: {eng_hhmm} ({eng_sec} s)")
     print(f"     Tags ADC ({adc_n}): {tags}")
 
     cursor, valid_recs, crc_errors, resync_bytes, dropped = hdr_sz, 0, 0, 0, 0

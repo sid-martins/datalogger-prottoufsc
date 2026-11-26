@@ -146,6 +146,8 @@ Como os frames CAN chegam de forma assíncrona dos vários `ESP32-C3` e da ECU:
   - **Gravação Automática por Motor Ativo (`RPM > 600`):** A sessão `.bin` no MicroSD deve iniciar automaticamente sempre que a ECU estiver online na rede CAN com **`RPM > 600`**, e encerrar/fechar o arquivo após **`5 s` contínuos** com `RPM <= 600` ou perda de comunicação CAN da ECU (evitando fragmentação de logs em oscilações rápidas e garantindo fechamento limpo no corte de ignição).
   - `Free_SW1` (`GPIO 35`): Em *standby* / reservado nesta fase (configurado como entrada segura sem ação ativa); `Free_SW2` (`GPIO 36`): Marcador de volta/evento (*Lap Beacon* com debounce digital).
   - `LED_Working` (`GPIO 39`) e `LED_Acquiring` (`GPIO 37`): Indicação visual de status do sistema (*heartbeat*), gravação ativa (`LED_Acquiring` contínuo) e alertas de falha de MicroSD ou nó CAN.
+- **RF-07 (Horímetro Permanente de Motor em Memória Não-Volátil — Padrão MoTeC *Engine Run Time Total*):**
+  - O `EngineHoursService` (`BSW`) + `NvsLld` (`LLD`) devem contabilizar o tempo acumulado de motor em funcionamento (`ecu_online && RPM > 600`) na partição `nvs` do ESP32-S3 (com *wear-leveling* nativo), realizando *checkpoint* periódico a cada **`1 minuto` (`60 s`)** de motor ligado e *commit* imediato ao desligar o motor, expondo o total em `HH:MM` no console serial e no cabeçalho de cada sessão `.bin` (`PDLG v1`).
 
 ---
 

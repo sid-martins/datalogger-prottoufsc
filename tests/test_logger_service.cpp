@@ -272,6 +272,7 @@ TEST_F(LoggerAndAggregatorTest, BinaryFileHeaderEncodesMagicMetadataAllTenBspTag
     meta.start_epoch_ms = 1795098605123ULL;
     meta.nominal_rate_hz = 100u;
     meta.rtc_synchronized = true;
+    meta.engine_hours_total_s = 450525u; // 125h 08m 45s
 
     std::array<uint8_t, bsw::LoggerService::kFileHeaderSize> hdr{};
     hdr.fill(0xAAu);
@@ -304,7 +305,8 @@ TEST_F(LoggerAndAggregatorTest, BinaryFileHeaderEncodesMagicMetadataAllTenBspTag
     for (std::size_t p = bsw::binlog::kDeviceId.size(); p < bsw::binlog::kDeviceIdSlotSize; ++p) {
         EXPECT_EQ(hdr[192u + p], 0u);
     }
-    for (std::size_t p = 224u; p < 252u; ++p) {
+    EXPECT_EQ(read_u32_le(hdr.data(), 224u), 450525u);
+    for (std::size_t p = 228u; p < 252u; ++p) {
         EXPECT_EQ(hdr[p], 0u);
     }
 
@@ -672,7 +674,7 @@ TEST_F(LoggerAndAggregatorTest, EndToEndBinaryStreamSupportsCrashTailResyncRecov
 
     std::array<uint8_t, bsw::LoggerService::kFileHeaderSize> hdr{};
     ASSERT_EQ(bsw::LoggerService::encode_file_header(
-                  {1000ULL, 1795098600000ULL, 100u, true}, hdr.data(), hdr.size()),
+                  {1000ULL, 1795098600000ULL, 100u, true, 3600u}, hdr.data(), hdr.size()),
               256u);
     file_bytes.insert(file_bytes.end(), hdr.begin(), hdr.end());
 

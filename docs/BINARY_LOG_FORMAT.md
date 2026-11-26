@@ -74,7 +74,8 @@ Gravado uma única vez no início do arquivo (`offset 0..255`).
 | `24..31` | `0x18..0x1F` | `8` | `start_epoch_ms` | `uint64_t` LE | `Q` | `uint64` | Timestamp Epoch UTC em ms (se `header_flags & 0x01`) ou fallback monotônico. |
 | `32..191` | `0x20..0xBF` | `160` | `adc_channel_tags[10][16]` | `char[10][16]` | `160s` *(10×16s)* | `[10][16]byte` | `10` slots ASCII de `16 B` null-padded com os nomes `TAG_*` de `bsp::kAnalogChannels`. |
 | `192..223` | `0xC0..0xDF` | `32` | `device_id` | `char[32]` | `32s` | `[32]byte` | Identificador ASCII null-padded do hardware: `"PROTTO-UFSC-ESP32S3-V1"`. |
-| `224..251` | `0xE0..0xFB` | `28` | `reserved` | `uint8_t[28]` | `28s` | `[28]byte` | Bytes reservados para futuras revisões (sempre `0x00` na v1). |
+| `224..227` | `0xE0..0xE3` | `4` | `engine_hours_total_s` | `uint32_t` LE | `I` | `uint32` | Horímetro permanente do motor (NVS) na abertura da sessão em segundos totais (`HH = s // 3600`, `MM = (s % 3600) // 60`). |
+| `228..251` | `0xE4..0xFB` | `24` | `reserved` | `uint8_t[24]` | `24s` | `[24]byte` | Bytes reservados para futuras revisões (sempre `0x00` na v1). |
 | `252..255` | `0xFC..0xFF` | `4` | `header_crc32` | `uint32_t` LE | `I` | `uint32` | CRC-32 IEEE 802.3 calculado sobre os bytes `0..251` do cabeçalho. |
 
 ### 4.1 Nomes Padrão em `adc_channel_tags[0..9]` (Autodescritivos no Cabeçalho)
@@ -201,8 +202,8 @@ Todos os offsets abaixo são **relativos ao início do registro** (`0..255`).
 
 ### 6.1 Python (`struct`)
 - **Cabeçalho (`256 B`):**
-  - String: **`<4sHHHHHBBQQ160s32s28sI`**
-  - `struct.calcsize("<4sHHHHHBBQQ160s32s28sI") == 256`
+  - String: **`<4sHHHHHBBQQ160s32sI24sI`**
+  - `struct.calcsize("<4sHHHHHBBQQ160s32sI24sI") == 256`
   - Para os nomes ADC: fatiar os `160` bytes em `10` blocos de `16` bytes (`tags_blob[i*16 : (i+1)*16].split(b"\x00", 1)[0].decode("ascii")`).
 - **Registro (`256 B`):**
   - String: **`<HBBIQQHHBBHdd4f10f4f16f6f9fHhHHI`**
@@ -223,10 +224,11 @@ type FileHeaderV1 struct {
     CanNodeCount     uint8
     StartMonotonicMs uint64
     StartEpochMs     uint64
-    AdcChannelTags   [10][16]byte
-    DeviceID         [32]byte
-    Reserved         [28]byte
-    HeaderCRC32      uint32
+    AdcChannelTags    [10][16]byte
+    DeviceID          [32]byte
+    EngineHoursTotalS uint32
+    Reserved          [24]byte
+    HeaderCRC32       uint32
 }
 
 type TelemetryRecordV1 struct {

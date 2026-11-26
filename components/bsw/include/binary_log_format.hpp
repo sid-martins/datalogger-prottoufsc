@@ -44,6 +44,7 @@ struct BinarySessionHeaderMeta {
     uint64_t start_epoch_ms{0};
     uint16_t nominal_rate_hz{100u};
     bool rtc_synchronized{false};
+    uint32_t engine_hours_total_s{0u};
 };
 
 } // namespace datalogger::bsw::binlog
